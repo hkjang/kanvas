@@ -1,22 +1,23 @@
 # Kanvas 엔터프라이즈 사용자 가이드 (User Guide & Employee Manual)
 
 - **문서 버전**: v0.1.0-ENTERPRISE  
-- **대상**: 일반 문서 작성자, 지식 관리자, AI MCP 클라이언트 사용자  
-- **문서 개요**: Wiki Space/Page 생성, 구조화 JSON 에디터, 버전 히스토리 복원, ACL 권한 설정, API 및 8개 MCP 활용 매뉴얼  
+- **작성일자**: 2026년 8월 9일  
+- **대상**: 일반 문서 작성자, 지식 관리자, SRE 엔지니어, AI MCP 클라이언트 사용자  
+- **문서 개요**: Wiki Space/Page 생성, 구조화 JSON 에디터, 버전 히스토리 복원, ACL 권한 설정, REST API 및 8개 MCP 활용 매뉴얼  
 
 ---
 
-## 1. 개요
+## 1. 개요 및 위키 워크플로우 (Wiki Workflow)
 
 Kanvas는 사내 지식 문서를 Space와 Page 계층으로 작성·관리하고, 불변 버전 히스토리 및 세밀한 ACL 보안을 제공하는 통합 사내 위키 서비스입니다.
 
 ---
 
-## 2. Wiki 문맥 작성 및 관리 (Wiki Workflow)
+## 2. Wiki 문맥 작성 및 관리
 
-### 2.1 Space & Page 생성
+### 2.1 Space & Page 계층 생성
 - **Space 생성**: 좌측 사이드바 `+ New Space` 버튼 클릭 후 고유 Key(예: `DEV`, `HR`, `RND`)와 명칭 지정.
-- **Page 계층 생성**: 원하는 Space 내에서 `+ New Page`를 눌러 상위-하위 트리 구조 문서 작성.
+- **Page 계층 트리**: 원하는 Space 내에서 `+ New Page`를 눌러 상위-하위 트리 구조 문서 작성.
 
 ### 2.2 버전 히스토리 (Immutable Version History)
 - 문서를 수정하고 저장할 때마다 새로운 불변 버전 번호(v1, v2, v3...)가 생성됩니다.

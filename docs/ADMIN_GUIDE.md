@@ -1,6 +1,7 @@
 # Kanvas 엔터프라이즈 관리자 가이드 (Admin & Operational Guide)
 
 - **문서 버전**: v0.1.0-ENTERPRISE  
+- **작성일자**: 2026년 8월 9일  
 - **대상**: 시스템 관리자, Security/DevOps 엔지니어, 데이터 마이그레이션 담당자  
 - **문서 개요**: Kanvas 4대 환경변수 부트스트랩, Confluence Discovery & Migration Machine 제어, Keycloak OIDC SSO 및 감사 로그 운영  
 
