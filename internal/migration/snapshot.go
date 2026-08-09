@@ -951,7 +951,7 @@ func (r *snapshotRunner) unsupported(ctx context.Context, pageID uuid.UUID, lega
 	r.unsupportedCount(ctx, pageID, legacyID, kind, name, sample, 1)
 }
 func (r *snapshotRunner) unsupportedCount(ctx context.Context, pageID uuid.UUID, legacyID, kind, name, sample string, count int64) {
-	_, _ = r.service.Store.Pool.Exec(ctx, `INSERT INTO unsupported_content(id,job_id,page_id,legacy_id,kind,name,sample,occurrence_count) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(job_id,page_id,kind,name) DO UPDATE SET occurrence_count=unsupported_content.occurrence_count+excluded.occurrence_count,sample=excluded.sample,updated_at=now()`, deterministicID("UNSUPPORTED", r.jobID.String()+":"+pageID.String()+":"+kind+":"+name), r.jobID, pageID, legacyID, kind, name, truncate(sample, 1000), count)
+	_, _ = r.service.Store.Pool.Exec(ctx, `INSERT INTO unsupported_content(id,job_id,page_id,legacy_id,kind,name,sample,occurrence_count) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(job_id,page_id,kind,name) DO UPDATE SET occurrence_count=excluded.occurrence_count,sample=excluded.sample,updated_at=now()`, deterministicID("UNSUPPORTED", r.jobID.String()+":"+pageID.String()+":"+kind+":"+name), r.jobID, pageID, legacyID, kind, name, truncate(sample, 1000), count)
 }
 
 func (r *snapshotRunner) reconcile(ctx context.Context) error {
@@ -999,22 +999,16 @@ func (r *snapshotRunner) reconcile(ctx context.Context) error {
 		if err := r.upsertCheck(ctx, "PAGE_VERSIONS", "Page Versions", versionStatus, versionSource, versionTarget, versionFailed, map[string]any{"jobId": r.jobID, "completedItems": versionCompleted}); err != nil {
 			return err
 		}
-		var unsupported int64
-		_ = r.service.Store.Pool.QueryRow(ctx, `SELECT count(*) FROM unsupported_content WHERE job_id=$1 AND status='OPEN'`, r.jobID).Scan(&unsupported)
-		macroStatus := "PASS"
-		if unsupported > 0 {
-			macroStatus = "WARNING"
-		}
-		if err := r.upsertCheck(ctx, "MACROS", "Macro Compatibility", macroStatus, nil, nil, unsupported, map[string]any{"jobId": r.jobID}); err != nil {
+		var unsupported, approved int64
+		_ = r.service.Store.Pool.QueryRow(ctx, `SELECT coalesce(sum(occurrence_count) FILTER(WHERE status='OPEN'),0),coalesce(sum(occurrence_count) FILTER(WHERE status='APPROVED'),0) FROM unsupported_content WHERE job_id=$1 AND kind IN ('UNKNOWN_MACRO','INVALID_XHTML','UNKNOWN_PLUGIN_DATA')`, r.jobID).Scan(&unsupported, &approved)
+		macroStatus := exceptionCheckStatus(unsupported, approved, "WARNING")
+		if err := r.upsertCheck(ctx, "MACROS", "Macro Compatibility", macroStatus, nil, nil, unsupported, map[string]any{"jobId": r.jobID, "approvedExceptions": approved}); err != nil {
 			return err
 		}
-		var orphan int64
-		_ = r.service.Store.Pool.QueryRow(ctx, `SELECT count(*) FROM unsupported_content WHERE job_id=$1 AND kind='ORPHAN_PAGE' AND status='OPEN'`, r.jobID).Scan(&orphan)
-		hierarchyStatus := "PASS"
-		if orphan > 0 {
-			hierarchyStatus = "FAIL"
-		}
-		if err := r.upsertCheck(ctx, "PAGE_HIERARCHY", "Page Tree", hierarchyStatus, nil, nil, orphan, map[string]any{"jobId": r.jobID}); err != nil {
+		var orphan, approvedOrphan int64
+		_ = r.service.Store.Pool.QueryRow(ctx, `SELECT coalesce(sum(occurrence_count) FILTER(WHERE status='OPEN'),0),coalesce(sum(occurrence_count) FILTER(WHERE status='APPROVED'),0) FROM unsupported_content WHERE job_id=$1 AND kind='ORPHAN_PAGE'`, r.jobID).Scan(&orphan, &approvedOrphan)
+		hierarchyStatus := exceptionCheckStatus(orphan, approvedOrphan, "FAIL")
+		if err := r.upsertCheck(ctx, "PAGE_HIERARCHY", "Page Tree", hierarchyStatus, nil, nil, orphan, map[string]any{"jobId": r.jobID, "approvedExceptions": approvedOrphan}); err != nil {
 			return err
 		}
 		var hashSource, hashTarget, hashMismatch int64

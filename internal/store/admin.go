@@ -62,7 +62,7 @@ func (s *Store) AdminOverview(ctx context.Context) (AdminOverview, error) {
 		(SELECT count(*) FROM sessions WHERE expires_at>now()),
 		(SELECT count(*) FROM api_keys WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now())),
 		(SELECT count(*) FROM audit_events WHERE created_at>now()-interval '24 hours'),
-		(SELECT count(*) FROM unsupported_content WHERE status='OPEN'),
+		(SELECT count(*) FROM unsupported_content WHERE status='OPEN' AND job_id=(SELECT id FROM migration_jobs WHERE kind='SNAPSHOT' ORDER BY created_at DESC LIMIT 1)),
 		(SELECT max(created_at) FROM audit_events)`).Scan(
 		&value.Users, &value.ActiveUsers, &value.Administrators, &value.Groups,
 		&value.Spaces, &value.ArchivedSpaces, &value.Pages, &value.Attachments,

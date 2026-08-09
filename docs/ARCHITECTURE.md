@@ -19,7 +19,7 @@ Admin ─> Migration Center ──┼─> Read-only MySQL Inspector
 |---|---|
 | `internal/auth` | Local session, CSRF, OIDC Discovery/Callback, API key identity |
 | `internal/store` | Canonical PostgreSQL schema와 Repository |
-| `internal/migration` | Schema Discovery, state machine, evidence gate |
+| `internal/migration` | Schema Discovery, Snapshot, 독립 Reconciliation, 예외 정책, state machine과 evidence gate |
 | `internal/mcp` | MCP JSON-RPC와 ACL-aware Wiki tools |
 | `internal/api` | REST, admin/personal boundary, security headers |
 | `web` | React Wiki, editor, personal, service admin UI |

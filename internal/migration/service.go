@@ -13,6 +13,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 var validIdentifier = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
@@ -67,19 +68,27 @@ var transitions = map[string]map[string]bool{
 
 func (s *Service) Transition(ctx context.Context, target string, actor uuid.UUID) error {
 	target = strings.ToUpper(strings.TrimSpace(target))
+	tx, err := s.Store.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('kanvas_migration_transition'))`); err != nil {
+		return err
+	}
 	var current string
-	if err := s.Store.Pool.QueryRow(ctx, `SELECT phase FROM migration_state WHERE id=true FOR UPDATE`).Scan(&current); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT phase FROM migration_state WHERE id=true FOR UPDATE`).Scan(&current); err != nil {
 		return err
 	}
 	if !transitions[current][target] {
 		return fmt.Errorf("invalid migration transition %s -> %s", current, target)
 	}
-	if err := s.transitionEvidence(ctx, current, target); err != nil {
+	if err = s.transitionEvidence(ctx, tx, current, target); err != nil {
 		return err
 	}
 	if target == "CUTOVER_READY" || target == "CUTOVER" {
 		var total, failures int
-		if err := s.Store.Pool.QueryRow(ctx, `SELECT count(*),count(*) FILTER (WHERE status NOT IN ('PASS','APPROVED')) FROM migration_checks`).Scan(&total, &failures); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT count(*),count(*) FILTER (WHERE status NOT IN ('PASS','APPROVED')) FROM migration_checks`).Scan(&total, &failures); err != nil {
 			return err
 		}
 		if total < 13 {
@@ -89,20 +98,27 @@ func (s *Service) Transition(ctx context.Context, target string, actor uuid.UUID
 			return fmt.Errorf("cutover gate rejected: %d checks are not passing", failures)
 		}
 	}
-	_, err := s.Store.Pool.Exec(ctx, `UPDATE migration_state SET phase=$1,source_mode=CASE WHEN $1='CUTOVER' THEN 'POSTGRES' WHEN $1='SHADOW' THEN 'SHADOW' WHEN $1 IN ('LEGACY','WINBACK') THEN 'LEGACY' ELSE source_mode END,updated_at=now() WHERE id=true`, target)
-	if err == nil {
-		s.Store.Audit(ctx, &actor, "MIGRATION_TRANSITION", "MIGRATION", "singleton", "", "", map[string]any{"from": current, "to": target})
+	if _, err = tx.Exec(ctx, `UPDATE migration_state SET phase=$1,source_mode=CASE WHEN $1='CUTOVER' THEN 'POSTGRES' WHEN $1='SHADOW' THEN 'SHADOW' WHEN $1 IN ('LEGACY','WINBACK') THEN 'LEGACY' ELSE source_mode END,updated_at=now() WHERE id=true`, target); err != nil {
+		return err
 	}
-	return err
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+	s.Store.Audit(ctx, &actor, "MIGRATION_TRANSITION", "MIGRATION", "singleton", "", "", map[string]any{"from": current, "to": target})
+	return nil
 }
 
-func (s *Service) transitionEvidence(ctx context.Context, current, target string) error {
+type evidenceQueryer interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func (s *Service) transitionEvidence(ctx context.Context, queryer evidenceQueryer, current, target string) error {
 	if target == "CDC_SYNC" {
 		return errors.New("CDC engine is not implemented in this release; transition is fail-closed")
 	}
 	if current == "DISCOVERY" && target == "SNAPSHOT" {
 		var n int
-		if err := s.Store.Pool.QueryRow(ctx, `SELECT count(*) FROM schema_discovery`).Scan(&n); err != nil {
+		if err := queryer.QueryRow(ctx, `SELECT count(*) FROM schema_discovery`).Scan(&n); err != nil {
 			return err
 		}
 		if n == 0 {
@@ -112,7 +128,7 @@ func (s *Service) transitionEvidence(ctx context.Context, current, target string
 	requiredJob := map[string]string{"CDC_SYNC": "SNAPSHOT", "VERIFY": "CDC", "SHADOW": "VALIDATION", "CUTOVER_READY": "SHADOW", "FINAL_SYNC": "FREEZE", "CUTOVER": "FINAL_SYNC", "STABILIZING": "CUTOVER"}[target]
 	if requiredJob != "" {
 		var n int
-		if err := s.Store.Pool.QueryRow(ctx, `SELECT count(*) FROM migration_jobs WHERE kind=$1 AND status='COMPLETE'`, requiredJob).Scan(&n); err != nil {
+		if err := queryer.QueryRow(ctx, `SELECT count(*) FROM migration_jobs WHERE kind=$1 AND status='COMPLETE'`, requiredJob).Scan(&n); err != nil {
 			return err
 		}
 		if n == 0 {

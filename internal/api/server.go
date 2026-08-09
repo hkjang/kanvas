@@ -88,6 +88,7 @@ func New(st *store.Store, authManager *auth.Manager, migrationService *migration
 	mux.HandleFunc("GET /api/v1/admin/migration", s.adminMigration)
 	mux.HandleFunc("POST /api/v1/admin/migration/discovery", s.runDiscovery)
 	mux.HandleFunc("POST /api/v1/admin/migration/snapshot", s.startSnapshot)
+	mux.HandleFunc("POST /api/v1/admin/migration/reconciliation", s.startReconciliation)
 	mux.HandleFunc("POST /api/v1/admin/migration/transition", s.migrationTransition)
 	mux.HandleFunc("GET /api/v1/admin/migration/jobs", s.migrationJobs)
 	mux.HandleFunc("GET /api/v1/admin/migration/jobs/{jobID}", s.migrationJob)
@@ -96,6 +97,8 @@ func New(st *store.Store, authManager *auth.Manager, migrationService *migration
 	mux.HandleFunc("GET /api/v1/admin/migration/jobs/{jobID}/items", s.migrationJobItems)
 	mux.HandleFunc("GET /api/v1/admin/migration/macros", s.migrationMacros)
 	mux.HandleFunc("GET /api/v1/admin/migration/unsupported", s.unsupportedContent)
+	mux.HandleFunc("PATCH /api/v1/admin/migration/unsupported/{itemID}", s.decideUnsupportedContent)
+	mux.HandleFunc("POST /api/v1/admin/migration/unsupported/bulk", s.bulkDecideUnsupportedContent)
 	mux.HandleFunc("GET /api/v1/admin/audit", s.auditEvents)
 	mux.HandleFunc("GET /api/v1/admin/status", s.adminStatus)
 	mux.HandleFunc("GET /api/openapi.yaml", s.openAPI)
@@ -723,32 +726,6 @@ func (s *Server) migrationMacros(w http.ResponseWriter, r *http.Request) {
 	}
 	respond(w, out, rows.Err())
 }
-func (s *Server) unsupportedContent(w http.ResponseWriter, r *http.Request) {
-	_, ok := s.authorize(w, r, "ADMIN", "*")
-	if !ok {
-		return
-	}
-	rows, err := s.Store.Pool.Query(r.Context(), `SELECT id,job_id,page_id,legacy_id,kind,name,status,occurrence_count,sample,resolution,created_at,updated_at FROM unsupported_content ORDER BY status,kind,name LIMIT 1000`)
-	if err != nil {
-		respond(w, nil, err)
-		return
-	}
-	defer rows.Close()
-	out := make([]map[string]any, 0)
-	for rows.Next() {
-		var id uuid.UUID
-		var jobID, pageID *uuid.UUID
-		var legacyID, kind, name, status, sample, resolution string
-		var count int64
-		var created, updated time.Time
-		if err = rows.Scan(&id, &jobID, &pageID, &legacyID, &kind, &name, &status, &count, &sample, &resolution, &created, &updated); err != nil {
-			respond(w, nil, err)
-			return
-		}
-		out = append(out, map[string]any{"id": id, "jobId": jobID, "pageId": pageID, "legacyId": legacyID, "kind": kind, "name": name, "status": status, "occurrenceCount": count, "sample": sample, "resolution": resolution, "createdAt": created, "updatedAt": updated})
-	}
-	respond(w, out, rows.Err())
-}
 func (s *Server) migrationTransition(w http.ResponseWriter, r *http.Request) {
 	id, ok := s.authorize(w, r, "ADMIN", "*")
 	if !ok {
@@ -1035,7 +1012,7 @@ func respondStatus(w http.ResponseWriter, status int, value any, err error) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if strings.Contains(err.Error(), "must be USER or ADMIN") || strings.Contains(err.Error(), "must be ACTIVE or DISABLED") || strings.Contains(err.Error(), "status must be ACTIVE or ARCHIVED") || strings.Contains(err.Error(), "group name is required") {
+	if strings.Contains(err.Error(), "must be USER or ADMIN") || strings.Contains(err.Error(), "must be ACTIVE or DISABLED") || strings.Contains(err.Error(), "status must be ACTIVE or ARCHIVED") || strings.Contains(err.Error(), "group name is required") || strings.Contains(err.Error(), "unsupported content status") || strings.Contains(err.Error(), "unsupported content decision") || strings.Contains(err.Error(), "resolution is required") || strings.Contains(err.Error(), "resolution must be") {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -1044,6 +1021,10 @@ func respondStatus(w http.ResponseWriter, status int, value any, err error) {
 		return
 	}
 	if strings.Contains(err.Error(), "must complete before snapshot") {
+		writeError(w, http.StatusPreconditionFailed, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "completed snapshot is required") {
 		writeError(w, http.StatusPreconditionFailed, err.Error())
 		return
 	}

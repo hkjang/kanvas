@@ -1,6 +1,6 @@
 # Kanvas 엔터프라이즈 관리자 가이드 (Admin & Operational Guide)
 
-- **문서 버전**: v0.3.0
+- **문서 버전**: v0.4.0
 - **작성일자**: 2026년 8월 9일  
 - **대상**: 시스템 관리자, Security/DevOps 엔지니어, 데이터 마이그레이션 담당자  
 - **문서 개요**: Kanvas 4대 환경변수 부트스트랩, Confluence Discovery & Migration Machine 제어, Keycloak OIDC SSO 및 감사 로그 운영  
@@ -29,9 +29,9 @@ KANVAS_BOOTSTRAP_ADMIN_PASSWORD=SuperSecretAdminPassword123!
 Confluence 데이터를 무중단 이관하기 위한 4단계 상태 머신 운영 절차:
 
 1. **DISCOVERY**: Read-Only Confluence MySQL 스키마 탐색 및 연결 검증.
-2. **CLASSIFY**: 테이블을 `Core` (문서, 사용자, 스페이스), `AO` (ActiveObjects 플러그인), `Unknown` 세 카테고리로 자동 분류.
-3. **SYNC & VERIFY**: 변환 규칙에 따른 데이터 동기화 및 건수/해시 무결성 검증.
-4. **CUTOVER GATE**: 관리자가 마이그레이션 검증 보고서를 확인 후 [Cutover 승인]을 클릭하면 Kanvas 위키 서비스가 정식 활성화됩니다.
+2. **SNAPSHOT**: 테이블을 `Core`, `AO`, `Unknown`으로 분류한 Profile을 기준으로 canonical schema에 반복 가능한 Initial Copy를 수행합니다.
+3. **RECONCILIATION**: Snapshot과 독립된 Job으로 건수·해시·권한·링크·Macro 근거를 다시 계산합니다.
+4. **CUTOVER GATE**: 13개 필수 근거가 모두 `PASS` 또는 사유가 기록된 `APPROVED`일 때만 다음 전환을 허용합니다. CDC가 제공되기 전에는 `CDC_SYNC` 진입을 서버에서 거부합니다.
 
 ---
 
@@ -64,6 +64,7 @@ Confluence 데이터를 무중단 이관하기 위한 4단계 상태 머신 운�
 | 워크스페이스 | Space | 문서·첨부 수 확인, Space 보관과 복원 |
 | 데이터 및 전환 | 데이터 원본 | DSN fingerprint, PostgreSQL 진단, Snapshot 처리 정책 |
 | 데이터 및 전환 | Migration Center | Discovery, Snapshot, 오류 확인·재개, Macro·Cutover Gate 근거 |
+| 데이터 및 전환 | 예외 콘텐츠 | 미지원 Macro·XHTML·고아 객체 검색, 일괄 위험 승인·해결·재오픈 및 감사 근거 |
 | 플랫폼 | 인증 및 SSO | Keycloak Issuer, Client ID/Secret, 그룹 claim과 관리자 그룹 |
 | 플랫폼 | API 및 MCP | 개인 키·세션 현황, REST/MCP endpoint와 보안 기본값 |
 | 플랫폼 | 운영 설정 | 서비스 표시명, 기준 URL, 세션 유지 시간, 부팅 환경 확인 |

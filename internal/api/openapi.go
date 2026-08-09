@@ -3,7 +3,7 @@ package api
 const openAPISpec = `openapi: 3.1.0
 info:
   title: Kanvas API
-  version: 0.3.0
+  version: 0.4.0
   description: ACL-aware Wiki, administration, migration, and personal key API.
 servers:
   - url: /api/v1
@@ -171,6 +171,13 @@ paths:
         "202": { description: Restartable snapshot job accepted }
         "409": { description: Another snapshot job is active }
         "412": { description: Schema discovery has not completed }
+  /admin/migration/reconciliation:
+    post:
+      operationId: startMigrationReconciliation
+      responses:
+        "202": { description: Independent reconciliation job accepted }
+        "409": { description: Another reconciliation job is active }
+        "412": { description: A completed Snapshot is required }
   /admin/migration/jobs:
     get:
       operationId: listMigrationJobs
@@ -204,7 +211,49 @@ paths:
   /admin/migration/unsupported:
     get:
       operationId: listUnsupportedContent
-      responses: { "200": { description: Unsupported macros, invalid XHTML, and orphan records } }
+      parameters:
+        - { name: jobId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, APPROVED, RESOLVED] } }
+        - { name: kind, in: query, required: false, schema: { type: string } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Filtered unsupported content from the latest Snapshot by default
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnsupportedContentPage' }
+  /admin/migration/unsupported/{itemId}:
+    patch:
+      operationId: decideUnsupportedContent
+      parameters: [{ name: itemId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnsupportedContentDecision' }
+      responses:
+        "200": { description: Decision recorded and related readiness checks refreshed }
+        "400": { description: Invalid status or missing rationale }
+        "404": { description: Unsupported item not found }
+  /admin/migration/unsupported/bulk:
+    post:
+      operationId: bulkDecideUnsupportedContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/UnsupportedContentDecision' }
+                - type: object
+                  required: [ids]
+                  properties:
+                    ids: { type: array, minItems: 1, maxItems: 500, items: { type: string, format: uuid } }
+      responses:
+        "200": { description: Bulk decision recorded atomically and related readiness checks refreshed }
+        "400": { description: Invalid status, item count, or missing rationale }
 components:
   securitySchemes:
     bearerAuth:
@@ -235,4 +284,46 @@ components:
         includeComments: { type: boolean, default: true }
         includeAttachmentMetadata: { type: boolean, default: true }
         includePermissions: { type: boolean, default: true }
+    UnsupportedContentDecision:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [OPEN, APPROVED, RESOLVED] }
+        resolution: { type: string, maxLength: 2000, description: Required for APPROVED and RESOLVED }
+    UnsupportedContentItem:
+      type: object
+      required: [id, legacyId, kind, name, status, occurrenceCount, sample, resolution, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        pageId: { type: string, format: uuid }
+        legacyId: { type: string }
+        kind: { type: string }
+        name: { type: string }
+        status: { type: string, enum: [OPEN, APPROVED, RESOLVED] }
+        occurrenceCount: { type: integer, format: int64 }
+        sample: { type: string }
+        resolution: { type: string }
+        resolvedBy: { type: string, format: uuid }
+        resolvedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UnsupportedContentPage:
+      type: object
+      required: [items, summary, filteredTotal, limit, offset]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/UnsupportedContentItem' } }
+        summary:
+          type: object
+          required: [total, open, approved, resolved, byKind]
+          properties:
+            total: { type: integer, format: int64 }
+            open: { type: integer, format: int64 }
+            approved: { type: integer, format: int64 }
+            resolved: { type: integer, format: int64 }
+            byKind: { type: object, additionalProperties: { type: integer, format: int64 } }
+        snapshotJobId: { type: string, format: uuid }
+        filteredTotal: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
 `

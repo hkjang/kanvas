@@ -25,6 +25,7 @@
 - Read-only Confluence MySQL Schema Discovery, Core/AO/Unknown Table 분류
 - 재시작 가능한 Initial Snapshot: 사용자·그룹·멤버십·Space·페이지 전체 버전·댓글·첨부 메타데이터·ACL
 - Confluence Storage XHTML → Canonical AST/Editor JSON 변환과 Macro 호환성·미지원 콘텐츠 리포트
+- Snapshot과 분리해 반복 실행하는 정합성 재검증 Job, 예외 승인·해결·재오픈 및 감사 근거 관리
 - 증거 기반 Migration 상태 머신과 Cutover Gate
 - OpenAPI 문서와 8개 ACL-aware MCP Tool
 - 로그인 화면과 프로필 컨텍스트 메뉴의 서비스 버전 표시
@@ -60,7 +61,7 @@ docker compose up --build
 go test ./...
 npm ci --prefix web
 npm run build --prefix web
-docker build -t kanvas-v0.3.0:latest .
+docker build -t kanvas-v0.4.0:latest .
 ```
 
 ## 문서

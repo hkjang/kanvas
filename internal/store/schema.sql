@@ -266,6 +266,7 @@ ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS options jsonb NOT NULL DEFAU
 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS current_entity text NOT NULL DEFAULT '';
 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS cancel_requested boolean NOT NULL DEFAULT false;
 CREATE UNIQUE INDEX IF NOT EXISTS migration_jobs_one_active_snapshot ON migration_jobs(kind) WHERE kind='SNAPSHOT' AND status IN ('PENDING','RUNNING','CANCEL_REQUESTED');
+CREATE UNIQUE INDEX IF NOT EXISTS migration_jobs_one_active_reconciliation ON migration_jobs(kind) WHERE kind='RECONCILIATION' AND status IN ('PENDING','RUNNING','CANCEL_REQUESTED');
 
 CREATE TABLE IF NOT EXISTS migration_mapping (
   id uuid PRIMARY KEY,
@@ -309,10 +310,15 @@ CREATE TABLE IF NOT EXISTS unsupported_content (
   occurrence_count bigint NOT NULL DEFAULT 1,
   sample text NOT NULL DEFAULT '',
   resolution text NOT NULL DEFAULT '',
+  resolved_by uuid REFERENCES users(id),
+  resolved_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(job_id,page_id,kind,name)
 );
+ALTER TABLE unsupported_content ADD COLUMN IF NOT EXISTS resolved_by uuid REFERENCES users(id);
+ALTER TABLE unsupported_content ADD COLUMN IF NOT EXISTS resolved_at timestamptz;
+CREATE INDEX IF NOT EXISTS unsupported_content_job_status_idx ON unsupported_content(job_id,status,kind);
 
 CREATE TABLE IF NOT EXISTS macro_compatibility (
   macro_name text PRIMARY KEY,
