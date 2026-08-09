@@ -1,6 +1,18 @@
-# Kanvas
+<p align="center">
+  <img src="docs/favicon.svg" alt="Kanvas Logo" width="90"><br><br>
+  <h1 align="center">Kanvas</h1>
+</p>
 
-Kanvas는 Confluence 호환 계층, 안전한 온라인 마이그레이션 제어면, PostgreSQL 기반 신규 Wiki를 하나의 제품으로 구성한 사내 지식 플랫폼입니다. Go 모듈러 모놀리스와 React SPA를 단일 Docker 이미지로 묶어 외부 CDN이나 인터넷 연결 없이 운영할 수 있습니다.
+<p align="center">
+  <strong>Confluence 호환 계층 및 온프레미스 에어갭 사내 지식 위키 플랫폼</strong><br>
+  안전한 Confluence MySQL 마이그레이션과 원천 데이터 소유권을 단일 Docker 패키지로 제공합니다.
+</p>
+
+<p align="center">
+  <a href="https://hkjang.github.io/kanvas/">🇰🇷 홍보 페이지</a> · <a href="https://hkjang.github.io/kanvas/index_en.html">🇺🇸 English Page</a> · <a href="https://github.com/sponsors/hkjang">💖 Sponsor</a>
+</p>
+
+---
 
 ## 현재 제공 기능
 

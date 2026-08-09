@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanvas 엔터프라이즈 사용자 가이드 (User Guide)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #f59e0b;
+            --primary-dark: #b45309;
+            --text-dark: #0f172a;
+            --text-muted: #475569;
+            --bg-light: #f8fafc;
+            --border-color: #e2e8f0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', -apple-system, sans-serif; color: var(--text-dark); background: var(--bg-light); line-height: 1.65; padding: 48px 24px; }
+        .doc-card { max-width: 1040px; margin: 0 auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 20px; padding: 56px; box-shadow: 0 12px 30px rgba(0,0,0,0.06); }
+        .header-meta { border-bottom: 3px solid var(--primary); padding-bottom: 28px; margin-bottom: 36px; }
+        .header-meta h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2.2rem; color: #0f172a; margin-bottom: 16px; letter-spacing: -0.02em; }
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.9rem; color: var(--text-muted); }
+        .meta-item { background: #f1f5f9; padding: 8px 14px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.45rem; color: var(--primary-dark); margin: 40px 0 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+        h3 { font-size: 1.15rem; color: #0f172a; margin: 24px 0 12px; }
+        p { margin-bottom: 18px; font-size: 1rem; color: #334155; }
+        ul, ol { margin-bottom: 20px; padding-left: 24px; }
+        li { margin-bottom: 8px; }
+        pre { background: #0f172a; color: #f8fafc; padding: 24px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; overflow-x: auto; margin: 20px 0; }
+        code { font-family: 'JetBrains Mono', monospace; background: #e2e8f0; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.88rem; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .print-btn { display: inline-block; background: var(--primary); color: #ffffff; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.92rem; float: right; }
+        .print-btn:hover { background: var(--primary-dark); }
+        @media print { .print-btn { display: none; } body { background: #ffffff; padding: 0; } .doc-card { border: none; box-shadow: none; padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="doc-card">
+        <a href="javascript:window.print()" class="print-btn">🖨️ PDF / 인쇄하기</a>
+        <div class="header-meta">
+            <h1>Kanvas 엔터프라이즈 사용자 가이드 (User Guide)</h1>
+            <div class="meta-grid">
+                <div class="meta-item"><strong>문서 버전:</strong> v0.1.0-ENTERPRISE</div>
+                <div class="meta-item"><strong>작성일자:</strong> 2026년 8월 9일</div>
+                <div class="meta-item"><strong>대상:</strong> 일반 작성자, 지식 관리자</div>
+                <div class="meta-item"><strong>분류:</strong> 공식 사용자 매뉴얼</div>
+            </div>
+        </div>
+
+        <h2>1. 개요</h2>
+        <p>Kanvas는 사내 지식 문서를 Space와 Page 계층으로 작성·관리하고, 불변 버전 히스토리 및 세밀한 ACL 보안을 제공하는 통합 사내 위키 서비스입니다.</p>
+
+        <h2>2. Wiki 문맥 작성 및 관리</h2>
+        <ul>
+            <li><strong>Space & Page:</strong> Space 별로 계층 구조의 문서 트리를 자유롭게 구성합니다.</li>
+            <li><strong>버전 히스토리:</strong> 저장 시마다 불변 버전이 생성되며 이전 버전과 롤백 기능을 지원합니다.</li>
+        </ul>
+
+        <h2>3. 세밀한 ACL 권한 설정</h2>
+        <p>Space 및 Page 단에서 User/Group 단위로 <code>READ</code>, <code>WRITE</code>, <code>ADMIN</code> 권한을 개별 부여할 수 있습니다.</p>
+
+        <h2>4. API / MCP Key 발급 및 AI 연동</h2>
+        <pre><code>{
+  "mcpServers": {
+    "kanvas": {
+      "command": "curl",
+      "args": [
+        "-X", "POST",
+        "-H", "Authorization: Bearer knv_7f9c8d11a2b3c4d5",
+        "https://kanvas.internal/mcp"
+      ]
+    }
+  }
+}</code></pre>
+    </div>
+</body>
+</html>

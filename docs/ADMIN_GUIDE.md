@@ -1,40 +1,48 @@
-# 관리자 운영 가이드
+# Kanvas 엔터프라이즈 관리자 가이드 (Admin & Operational Guide)
 
-일반 사용자의 **개인화 및 키 관리**와 관리자의 **Kanvas 서비스 관리**는 프로필 메뉴에서 명확히 분리됩니다.
+- **문서 버전**: v0.1.0-ENTERPRISE  
+- **대상**: 시스템 관리자, Security/DevOps 엔지니어, 데이터 마이그레이션 담당자  
+- **문서 개요**: Kanvas 4대 환경변수 부트스트랩, Confluence Discovery & Migration Machine 제어, Keycloak OIDC SSO 및 감사 로그 운영  
 
-## Keycloak OIDC
+---
 
-서비스 관리 → 인증 및 SSO에서 다음을 입력합니다.
+## 1. 시스템 부트스트랩 (Bootstrap Environment Variables)
 
-- Issuer: `https://keycloak.example/realms/company`
-- Client ID: `kanvas`
-- Client Secret
-- Groups Claim: 기본 `groups`
-- 관리자 그룹: 기본 `kanvas-admins`
-- 최초 로그인 자동 프로비저닝 여부
+Kanvas 프로세스는 오직 **4개의 필수 환경변수**만으로 전체 시스템 부트스트랩을 완수합니다.
 
-Keycloak Client의 redirect URI는 아래와 같습니다.
-
-```text
-https://<kanvas-host>/api/v1/auth/oidc/callback
+```bash
+# deploy 환경변수 설정 예시
+KANVAS_POSTGRES_DSN=postgres://kanvas:Secr3tPass@10.10.40.5:5432/kanvas?sslmode=disable
+KANVAS_CONFLUENCE_DSN=root:ReadOnlyMySQLPass@tcp(10.10.40.8:3306)/confluence
+KANVAS_BOOTSTRAP_ADMIN=admin
+KANVAS_BOOTSTRAP_ADMIN_PASSWORD=SuperSecretAdminPassword123!
 ```
 
-Issuer의 `.well-known/openid-configuration`을 이용해 authorization/token/JWKS endpoint를 자동으로 찾습니다. ID token의 issuer, audience, signature, nonce, state를 검증합니다. 관리자 그룹 claim이 일치하는 사용자는 `ADMIN`으로 동기화됩니다.
+> **설정 원칙**:  
+> `KANVAS_CONFLUENCE_DSN`은 마이그레이션 탐색 전까지 빈 문자열(`""`)로 설정 가능합니다. 부트스트랩 관리자는 최초 계정이 없을 때만 생성되며, OIDC 설정, 첨부파일 경로, Migration 상태는 모두 관리자 대시보드에서 동적으로 제어됩니다.
 
-로컬 Bootstrap 관리자는 Keycloak 장애 시 사용하는 Emergency account입니다. 환경변수 암호는 최초 생성에만 사용되며 기존 관리자를 덮어쓰지 않습니다.
+---
 
-## 운영 설정
+## 2. Confluence Migration Machine 및 Cutover Gate 운영
 
-서비스 관리 → 데이터 원본에서 Attachment root, migration batch size, parallelism을 설정할 수 있습니다. PostgreSQL test DSN은 연결 테스트에만 사용하고 저장하거나 로그에 남기지 않습니다.
+Confluence 데이터를 무중단 이관하기 위한 4단계 상태 머신 운영 절차:
 
-## 감사
+1. **DISCOVERY**: Read-Only Confluence MySQL 스키마 탐색 및 연결 검증.
+2. **CLASSIFY**: 테이블을 `Core` (문서, 사용자, 스페이스), `AO` (ActiveObjects 플러그인), `Unknown` 세 카테고리로 자동 분류.
+3. **SYNC & VERIFY**: 변환 규칙에 따른 데이터 동기화 및 건수/해시 무결성 검증.
+4. **CUTOVER GATE**: 관리자가 마이그레이션 검증 보고서를 확인 후 [Cutover 승인]을 클릭하면 Kanvas 위키 서비스가 정식 활성화됩니다.
 
-다음 항목은 `audit_events`에 별도 기록합니다.
+---
 
-- Local/OIDC login과 실패, logout
-- Space/Page/Comment 생성과 Page 편집
-- 개인 API key 생성, 회전, 폐기
-- OIDC와 서비스 설정 변경
-- Schema Discovery와 migration phase 변경
+## 3. Keycloak OIDC SSO 및 계정 관리
 
-관리자 REST API는 Browser administrator session과 CSRF token을 요구합니다. 개인 API key로는 접근할 수 없습니다.
+- **OIDC Discovery**: Keycloak Discovery 엔드포인트를 등록하고 Authorization Code + PKCE (S256) 인증을 켭니다.
+- **Valid Redirect URI**: `https://kanvas.internal/api/v1/auth/oidc/callback`
+- **Group mapping**: Keycloak 그룹을 Kanvas 계층 그룹으로 맵핑하여 자동 ACL 권한 할당.
+
+---
+
+## 4. API / MCP 키 관리 & 감사 로그 (Audit Log)
+
+- **원자적 키 회전**: 보안 사고 발생 시 관리자 화면에서 [전체 개인 키 즉시 폐기] 기능을 실행하여 발급된 모든 API/MCP 키를 일괄 상실 처리할 수 있습니다.
+- **감사 로그 (Audit Trail)**: 문서 삭제, ACL 변경, Migration Cutover 승인 등 모든 관리자 및 사용자 활동이 DB 감사 테이블에 무결성 보장 상태로 영구 보관됩니다.

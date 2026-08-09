@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanvas - Confluence 호환 온프레미스 위키 & 지식 플랫폼 | 단일 Docker</title>
+    <meta name="description" content="Kanvas는 Confluence 호환 계층, 온라인 마이그레이션 제어면, PostgreSQL 기반 신규 위키를 단일 Docker 이미지로 구성한 사내 지식 플랫폼입니다. 에어갭 100% 지원, Keycloak OIDC, 8개 ACL-aware MCP 도구 내장.">
+    <meta name="keywords" content="Confluence 마이그레이션, 사내 위키, 온프레미스 지식 플랫폼, 에어갭, Confluence 대체, Keycloak OIDC, MCP, Kanvas">
+    <meta name="author" content="Kanvas">
+    <meta name="robots" content="index, follow">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Kanvas - Confluence 호환 온프레미스 위키 & 지식 플랫폼">
+    <meta property="og:description" content="Confluence 데이터를 안전하게 마이그레이션하고 100% 사내 인프라에서 독립 운영하는 차세대 위키 플랫폼.">
+    <meta property="og:url" content="https://hkjang.github.io/kanvas/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Kanvas">
+    <meta property="og:locale" content="ko_KR">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kanvas - Confluence 호환 온프레미스 위키 & 지식 플랫폼">
+    <meta name="twitter:description" content="단일 Docker 이미지 기반 사내 에어갭 위키 플랫폼. Confluence Migration Machine & MCP 연동.">
+
+    <!-- Canonical & Alternate -->
+    <link rel="canonical" href="https://hkjang.github.io/kanvas/">
+    <link rel="alternate" hreflang="ko" href="https://hkjang.github.io/kanvas/">
+    <link rel="alternate" hreflang="en" href="https://hkjang.github.io/kanvas/index_en.html">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- JSON-LD: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Kanvas",
+      "operatingSystem": "Linux, Docker",
+      "applicationCategory": "BusinessApplication",
+      "softwareVersion": "0.1.0",
+      "description": "Confluence 호환 계층, 온라인 마이그레이션 제어면, PostgreSQL 기반 신규 위키를 단일 Docker 이미지로 제공하는 온프레미스 사내 지식 플랫폼",
+      "url": "https://github.com/hkjang/kanvas",
+      "downloadUrl": "https://github.com/hkjang/kanvas",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Wiki Space, Page, 불변 Version, Comment 및 구조화 Editor JSON",
+        "Confluence Read-Only MySQL Discovery & Migration Machine (Cutover Gate)",
+        "User/Group 기반 Space & Page ACL 권한 제어 엔진",
+        "Keycloak OIDC SSO 연동 및 로컬 비상 관리자",
+        "8개 ACL-aware Streamable HTTP MCP Server 연동",
+        "단일 non-root Docker 이미지 및 오프라인 air-gapped 번들"
+      ]
+    }
+    </script>
+
+    <!-- JSON-LD: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Kanvas는 기존 Confluence 데이터를 어떻게 이관하나요?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Kanvas는 Read-Only Confluence MySQL Discovery와 증거 기반 Migration 상태 머신을 내장하여 서비스 중단 없이 안전하게 검증 및 Cutover Gate 절차를 제공합니다."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "외부 인터넷 통신이 차단된 에어갭(Air-Gapped) 환경에서도 구동되나요?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "네. Go 모듈러 모놀리스와 React SPA 프론트엔드가 단일 Docker 이미지로 패키징되어 외부 CDN 접속 없이 100% 폐쇄망에서 독립 구동합니다."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "AI 에이전트(Claude Desktop, Cursor) 연동이 지원되나요?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "네. 8개의 ACL-aware Streamable HTTP MCP Tool을 제공하여 호출 사용자의 위키 권한 범위 내에서 AI가 자연어로 사내 지식을 검색하고 문서를 생성할 수 있습니다."
+          }
+        }
+      ]
+    }
+    </script>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <header class="navbar">
+        <div class="container nav-container">
+            <a href="#" class="logo">
+                <img src="favicon.svg" alt="Kanvas Logo" width="32" height="32" style="filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));">
+                Kanvas
+            </a>
+            <ul class="nav-links desktop-only">
+                <li><a href="#features">주요 기능</a></li>
+                <li><a href="#migration">마이그레이션 엔진</a></li>
+                <li><a href="#acl">ACL & 보안</a></li>
+                <li><a href="#mcp">API & MCP</a></li>
+                <li><a href="#docs">문서 센터</a></li>
+                <li><a href="#deployment">배포 가이드</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
+            <div class="nav-actions desktop-only">
+                <a href="https://github.com/sponsors/hkjang" target="_blank" rel="noopener" class="btn btn-sponsor">
+                    💖 Sponsor
+                </a>
+                <div class="lang-switcher">
+                    <a href="index.html" class="active">KO</a>
+                    <a href="index_en.html">EN</a>
+                </div>
+                <a href="https://github.com/hkjang/kanvas" class="btn btn-secondary" target="_blank" rel="noopener">
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.46-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+                    GitHub
+                </a>
+            </div>
+            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="메뉴 열기">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Drawer -->
+    <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-nav-links">
+            <a href="#features">주요 기능</a>
+            <a href="#migration">마이그레이션 엔진</a>
+            <a href="#acl">ACL & 보안</a>
+            <a href="#mcp">API & MCP</a>
+            <a href="#docs">문서 센터</a>
+            <a href="#deployment">배포 가이드</a>
+            <a href="#faq">FAQ</a>
+            <a href="https://github.com/sponsors/hkjang" target="_blank" class="btn btn-sponsor" style="justify-content: center;">💖 Sponsor</a>
+            <a href="https://github.com/hkjang/kanvas" class="btn btn-primary" target="_blank">GitHub 바로가기</a>
+            <div class="lang-switcher" style="justify-content: center; margin-top: 12px;">
+                <a href="index.html" class="active">한국어</a>
+                <a href="index_en.html">English</a>
+            </div>
+        </div>
+    </div>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero" id="hero">
+            <div class="container">
+                <div class="hero-badge">⚡ Confluence Compatible & 100% Air-Gapped Single Docker</div>
+                <h1 class="hero-headline">
+                    차세대 온프레미스<br>
+                    <span class="text-gradient">사내 위키 & 지식 플랫폼</span>
+                </h1>
+                <p class="hero-subtitle">Confluence 데이터 안전 마이그레이션과 원천 데이터 소유권을 하나로</p>
+                <p class="hero-description">
+                    Kanvas는 외부 클라우드 접속이 불가능한 사내 폐쇄망 인프라에서 Confluence의 데이터 구조를 안전하게 분석·마이그레이션하고, 
+                    PostgreSQL 기반의 초고속 지식 관리 및 8개 ACL-aware MCP 도구 연동을 제공하는 
+                    엔터프라이즈 통합 위키 플랫폼입니다.
+                </p>
+                <div class="hero-ctas">
+                    <a href="https://github.com/hkjang/kanvas" class="btn btn-primary btn-lg" target="_blank" rel="noopener">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style="margin-right:6px"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.46-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+                        시작하기 (GitHub)
+                    </a>
+                    <a href="#migration" class="btn btn-secondary btn-lg">
+                        🔄 마이그레이션 엔진
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Bar -->
+        <section class="stats-bar">
+            <div class="container stats-container">
+                <div class="stat-item">
+                    <span class="stat-icon">📚</span>
+                    <span>Space & Page 계층 구조</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🔄</span>
+                    <span>Confluence MySQL Migration</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🔒</span>
+                    <span>ACL (User/Group) 보안</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🤖</span>
+                    <span>8 ACL-aware MCP Tools</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Core Features -->
+        <section class="section" id="features">
+            <div class="container">
+                <h2 class="section-title text-center">주요 기능</h2>
+                <p class="section-subtitle text-center">사내 문서 작성부터 대규모 Confluence 이관 및 AI 통합까지 지원합니다</p>
+                <div class="feature-grid">
+                    <article class="feature-card glass-panel">
+                        <div class="feature-icon">📑</div>
+                        <h3 class="feature-title">Wiki Core Engine</h3>
+                        <p class="feature-desc">Space, Page 트리, 불변 버전 히스토리(Version), 댓글(Comment) 및 구조화 Editor JSON 기반 문서 엔진을 제공합니다.</p>
+                    </article>
+                    <article class="feature-card glass-panel">
+                        <div class="feature-icon">🔄</div>
+                        <h3 class="feature-title">Confluence Migration Machine</h3>
+                        <p class="feature-desc">Read-Only Confluence MySQL Schema Discovery와 Core/AO/Unknown 테이블 분류 및 Cutover Gate 안전 이관을 지원합니다.</p>
+                    </article>
+                    <article class="feature-card glass-panel">
+                        <div class="feature-icon">🔒</div>
+                        <h3 class="feature-title">ACL (Space & Page Level)</h3>
+                        <p class="feature-desc">사용자 및 그룹 단위 읽기/쓰기/관리 권한 제어 엔진을 탑재하여 REST API 및 MCP 도구에 일괄 반영됩니다.</p>
+                    </article>
+                    <article class="feature-card glass-panel">
+                        <div class="feature-icon">🔐</div>
+                        <h3 class="feature-title">Keycloak OIDC & 비상 관리자</h3>
+                        <p class="feature-desc">Keycloak OIDC SSO 연동 및 네트워크 단선 상황을 대비한 로컬 비상 관리자 부트스트랩 계정을 결합했습니다.</p>
+                    </article>
+                    <article class="feature-card glass-panel">
+                        <div class="feature-icon">🤖</div>
+                        <h3 class="feature-title">8 ACL-aware MCP Tools</h3>
+                        <p class="feature-desc">Claude Desktop, Cursor에서 호출자의 위키 권한 범위 내에서 문서를 안전하게 탐색, 검색, 생성, 변경합니다.</p>
+                    </article>
+                    <article class="feature-card glass-panel">
+                        <div class="feature-icon">📦</div>
+                        <h3 class="feature-title">오프라인 단일 Docker</h3>
+                        <p class="feature-desc">Go 모듈러 모놀리스와 React SPA 빌드 자산을 단일 non-root Docker 이미지로 묶어 에어갭 환경에 배포합니다.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- Migration Machine Section -->
+        <section class="section bg-dark" id="migration">
+            <div class="container text-white">
+                <h2 class="section-title text-center">Confluence Migration State Machine</h2>
+                <p class="section-subtitle text-center" style="color: #94a3b8">증거 기반 상태 머신으로 무중단 안전 마이그레이션을 보장합니다</p>
+
+                <div class="migration-visual">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <h4>DISCOVERY</h4>
+                        <p>Read-Only MySQL 테이블 및 스키마 검증</p>
+                    </div>
+                    <div class="step-connector desktop-only">→</div>
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <h4>CLASSIFY</h4>
+                        <p>Core / AO / Unknown 테이블 정밀 분류</p>
+                    </div>
+                    <div class="step-connector desktop-only">→</div>
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <h4>SYNC & VERIFY</h4>
+                        <p>데이터 변환 및 무결성 검증 수행</p>
+                    </div>
+                    <div class="step-connector desktop-only">→</div>
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <h4>CUTOVER GATE</h4>
+                        <p>최종 승인 후 Kanvas 위키 활성화</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Developer & MCP Integration -->
+        <section class="section" id="mcp">
+            <div class="container">
+                <h2 class="section-title text-center">개발자 API & 8 ACL-aware MCP Tools</h2>
+                <p class="section-subtitle text-center">REST API와 Streamable HTTP MCP로 사내 AI 지식 검색을 자동화하세요</p>
+                
+                <div class="integration-layout">
+                    <div class="api-block glass-panel">
+                        <div class="api-title">
+                            <span class="badge badge-amber">REST API</span>
+                            OpenAPI 3.0 사양
+                        </div>
+                        <p style="color: var(--text-muted); margin-bottom: 1rem;">Space, Page, Version, Attachment 통합 API를 제공합니다.</p>
+                        <div class="code-editor">
+                            <div class="code-header">json — GET /api/v1/spaces/DEV/pages</div>
+<pre><code>{
+  "success": true,
+  "data": [
+    {
+      "id": "PAGE_2026_901",
+      "title": "Kanvas Architecture Guide",
+      "version": 4,
+      "spaceKey": "DEV"
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="api-block glass-panel">
+                        <div class="api-title">
+                            <span class="badge badge-violet">MCP</span>
+                            Streamable HTTP MCP Server
+                        </div>
+                        <p style="color: var(--text-muted); margin-bottom: 1rem;">8개의 ACL-aware 도구로 권한 범위 지식을 탐색합니다.</p>
+                        <div class="code-editor">
+                            <div class="code-header">json — MCP Tool: kanvas_search_pages</div>
+<pre><code>{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "kanvas_search_pages",
+    "arguments": { "query": "Keycloak OIDC SSO" }
+  }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tech Badges -->
+                <div class="tech-stack text-center" style="margin-top: 48px;">
+                    <h3 style="margin-bottom: 12px;">기술 스택</h3>
+                    <div class="badges">
+                        <span class="tech-badge">🔵 Go Modular Monolith</span>
+                        <span class="tech-badge">⚛️ React 19 / TypeScript</span>
+                        <span class="tech-badge">🐘 PostgreSQL 15+</span>
+                        <span class="tech-badge">🐬 Confluence MySQL Discovery</span>
+                        <span class="tech-badge">🔐 Keycloak OIDC</span>
+                        <span class="tech-badge">🔒 Space/Page ACL</span>
+                        <span class="tech-badge">🤖 8 MCP Tools</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Documentation & Report Center -->
+        <section class="section bg-dark" id="docs">
+            <div class="container text-white">
+                <h2 class="section-title text-center">공식 문서 & 보고서 센터</h2>
+                <p class="section-subtitle text-center" style="color: #94a3b8">사내 도입 및 마이그레이션을 위한 역할별 매뉴얼, 경영진 보고서, 로드맵 및 분석 자료 세트</p>
+                
+                <div class="feature-grid">
+                    <div class="glass-panel">
+                        <h3>📊 경영진 종합 보고서</h3>
+                        <p style="color: var(--text-muted); margin: 8px 0 16px; font-size: 0.9rem;">Kanvas 도입 성과, TCO 75% 절감, Confluence 이관 분석 및 보안 가치 보고서</p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="EXECUTIVE_REPORT.pdf" target="_blank" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.82rem;">📄 PDF 다운로드</a>
+                            <a href="EXECUTIVE_REPORT.html" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">🌐 HTML 뷰어</a>
+                            <a href="EXECUTIVE_REPORT.md" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">📝 Markdown</a>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel">
+                        <h3>📘 사용자 가이드 (User Guide)</h3>
+                        <p style="color: var(--text-muted); margin: 8px 0 16px; font-size: 0.9rem;">Wiki Space/Page 작성, 버전 히스토리 복원, 댓글 작성, ACL 권한 및 MCP 사용법</p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="USER_GUIDE.pdf" target="_blank" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.82rem;">📄 PDF 다운로드</a>
+                            <a href="USER_GUIDE.html" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">🌐 HTML 뷰어</a>
+                            <a href="USER_GUIDE.md" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">📝 Markdown</a>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel">
+                        <h3>🔧 관리자 가이드 (Admin Guide)</h3>
+                        <p style="color: var(--text-muted); margin: 8px 0 16px; font-size: 0.9rem;">4대 환경변수 부트스트랩, Confluence Discovery & Migration Machine 운영, Keycloak OIDC</p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="ADMIN_GUIDE.pdf" target="_blank" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.82rem;">📄 PDF 다운로드</a>
+                            <a href="ADMIN_GUIDE.html" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">🌐 HTML 뷰어</a>
+                            <a href="ADMIN_GUIDE.md" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">📝 Markdown</a>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel">
+                        <h3>🚀 중장기 로드맵 (Roadmap)</h3>
+                        <p style="color: var(--text-muted); margin: 8px 0 16px; font-size: 0.9rem;">Phase 1 에어갭 위키 구축부터 Phase 3 AI 자연어 사내 문서 자동 생성 MCP 2.0 비전</p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="ROADMAP_PLAN.pdf" target="_blank" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.82rem;">📄 PDF 다운로드</a>
+                            <a href="ROADMAP_PLAN.html" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">🌐 HTML 뷰어</a>
+                            <a href="ROADMAP_PLAN.md" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">📝 Markdown</a>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel">
+                        <h3>👥 타겟 사용자군 분석</h3>
+                        <p style="color: var(--text-muted); margin: 8px 0 16px; font-size: 0.9rem;">경영진, 지식관리자, 일반 팀원, SRE 및 보안팀 등 사내 직군별 페르소나 및 이점</p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="USER_GROUPS_ANALYSIS.pdf" target="_blank" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.82rem;">📄 PDF 다운로드</a>
+                            <a href="USER_GROUPS_ANALYSIS.html" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">🌐 HTML 뷰어</a>
+                            <a href="USER_GROUPS_ANALYSIS.md" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.82rem;">📝 Markdown</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deployment Section -->
+        <section class="section" id="deployment">
+            <div class="container">
+                <h2 class="section-title text-center">오프라인 설치 가이드</h2>
+                <p class="section-subtitle text-center">단일 Docker 이미지로 오프라인 폐쇄망 환경에 빠르게 배포하세요</p>
+                <div class="deploy-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+                    <div class="deploy-card glass-panel">
+                        <h4>🐳 Single Docker Execution</h4>
+                        <p>Go 백엔드와 React 프론트엔드가 내장된 단일 컨테이너로 구동합니다.</p>
+<pre><code>cp .env.example .env
+# .env 환경변수 설정 후 실행
+docker compose up -d</code></pre>
+                    </div>
+                    <div class="deploy-card glass-panel">
+                        <h4>⚙️ 4대 필수 환경변수</h4>
+                        <p>Kanvas가 사용하는 필수 환경변수는 단 4개입니다.</p>
+<pre><code>KANVAS_POSTGRES_DSN=postgres://kanvas:pass@localhost:5432/kanvas
+KANVAS_CONFLUENCE_DSN=root:pass@tcp(localhost:3306)/confluence
+KANVAS_BOOTSTRAP_ADMIN=admin
+KANVAS_BOOTSTRAP_ADMIN_PASSWORD=SuperSecretPassword123!</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="section bg-dark" id="faq">
+            <div class="container text-white">
+                <h2 class="section-title text-center">자주 묻는 질문 (FAQ)</h2>
+                <div class="faq-container" style="margin-top: 40px;">
+                    <div class="faq-item">
+                        <button class="faq-question" aria-expanded="false">
+                            기존 Confluence 데이터 마이그레이션 시 서비스 중단이 필요한가요?
+                            <span class="faq-icon">+</span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>아닙니다. Kanvas는 Read-Only Confluence MySQL Discovery와 무중단 검증 및 Cutover Gate를 제공하여 서비스 운영 중 안전하게 데이터를 분석하고 전환할 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question" aria-expanded="false">
+                            외부 인터넷이 완전 차단된 폐쇄망에서도 구동되나요?
+                            <span class="faq-icon">+</span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>네. 프론트엔드 정적 파일과 백엔드 Go 바이너리가 단일 Docker 이미지에 포함되어 있어 외부 CDN 및 네트워크 연결 없이 100% 독립 실행됩니다.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question" aria-expanded="false">
+                            AI 에이전트(Claude Desktop, Cursor)에서 위키를 탐색할 때 보안 권한이 유지되나요?
+                            <span class="faq-icon">+</span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>네. Kanvas는 8개의 ACL-aware Streamable HTTP MCP Tool을 제공하여 호출 사용자의 User/Group ACL 권한 범위 내에서만 문서가 검색 및 조작됩니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="section" id="get-started">
+            <div class="container">
+                <div class="cta-container glass-panel text-center" style="border-radius: var(--radius-xl)">
+                    <h2 class="cta-title">지금 바로 시작하세요</h2>
+                    <p class="cta-desc" style="margin-bottom: 2rem; color: #94a3b8;">오프라인망 사내 지식 위키 생태계를 단일 Docker 패키지로 구축하세요</p>
+                    <a href="https://github.com/hkjang/kanvas" class="btn btn-primary btn-lg" target="_blank" rel="noopener">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" style="margin-right:8px"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.46-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+                        GitHub 저장소 방문하기
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div>
+                    <a href="#" class="logo" style="margin-bottom: 12px;">
+                        <img src="favicon.svg" alt="Kanvas Logo" width="28" height="28" style="filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));">
+                        Kanvas
+                    </a>
+                    <p class="footer-desc">Confluence 호환 계층, 온라인 마이그레이션 제어면, PostgreSQL 기반 신규 위키를 단일 Docker로 제공하는 지식 플랫폼.</p>
+                </div>
+                <div>
+                    <h4 class="footer-heading">빠른 링크</h4>
+                    <div class="footer-links">
+                        <a href="https://github.com/hkjang/kanvas" target="_blank">GitHub Repository</a>
+                        <a href="https://github.com/hkjang/kanvas#readme" target="_blank">Documentation</a>
+                        <a href="index_en.html">English Page</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© 2026 Kanvas. Open Source Apache-2.0 License.</span>
+                <span class="footer-contact">도입 및 문의: <a href="mailto:gagagiga@naver.com">gagagiga@naver.com</a></span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Interactions -->
+    <script>
+    (function() {
+        'use strict';
+        var menuBtn = document.getElementById('mobile-menu-btn');
+        var mobileMenu = document.getElementById('mobile-menu');
+        if (menuBtn && mobileMenu) {
+            menuBtn.addEventListener('click', function() {
+                mobileMenu.classList.toggle('active');
+            });
+            mobileMenu.querySelectorAll('a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    mobileMenu.classList.remove('active');
+                });
+            });
+        }
+        document.querySelectorAll('.faq-question').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var answer = this.nextElementSibling;
+                var icon = this.querySelector('.faq-icon');
+                var isOpen = answer.style.maxHeight && answer.style.maxHeight !== '0px';
+
+                document.querySelectorAll('.faq-answer').forEach(function(a) { a.style.maxHeight = '0px'; });
+                document.querySelectorAll('.faq-icon').forEach(function(i) { i.textContent = '+'; });
+                document.querySelectorAll('.faq-question').forEach(function(q) { q.setAttribute('aria-expanded', 'false'); });
+
+                if (!isOpen) {
+                    answer.style.maxHeight = answer.scrollHeight + 'px';
+                    icon.textContent = '−';
+                    this.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+    })();
+    </script>
+</body>
+</html>
