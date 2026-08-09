@@ -117,7 +117,10 @@ CREATE TABLE IF NOT EXISTS page_versions (
   page_id uuid NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
   version integer NOT NULL,
   title text NOT NULL,
+  legacy_system text,
+  legacy_id text,
   legacy_storage text NOT NULL DEFAULT '',
+  canonical_document jsonb NOT NULL DEFAULT '{"type":"document","children":[]}'::jsonb,
   editor_document jsonb NOT NULL DEFAULT '{"type":"doc","content":[]}'::jsonb,
   rendered_text text NOT NULL DEFAULT '',
   change_message text NOT NULL DEFAULT '',
@@ -126,6 +129,10 @@ CREATE TABLE IF NOT EXISTS page_versions (
   content_hash text NOT NULL DEFAULT '',
   UNIQUE(page_id, version)
 );
+ALTER TABLE page_versions ADD COLUMN IF NOT EXISTS canonical_document jsonb NOT NULL DEFAULT '{"type":"document","children":[]}'::jsonb;
+ALTER TABLE page_versions ADD COLUMN IF NOT EXISTS legacy_system text;
+ALTER TABLE page_versions ADD COLUMN IF NOT EXISTS legacy_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS page_versions_legacy_idx ON page_versions(legacy_system,legacy_id) WHERE legacy_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS page_versions_search_idx ON page_versions USING gin(to_tsvector('simple', title || ' ' || rendered_text));
 
 CREATE TABLE IF NOT EXISTS page_permissions (
@@ -134,8 +141,13 @@ CREATE TABLE IF NOT EXISTS page_permissions (
   permission text NOT NULL,
   subject_type text NOT NULL CHECK (subject_type IN ('USER','GROUP')),
   subject_id uuid NOT NULL,
+  legacy_system text,
+  legacy_id text,
   UNIQUE(page_id, permission, subject_type, subject_id)
 );
+ALTER TABLE page_permissions ADD COLUMN IF NOT EXISTS legacy_system text;
+ALTER TABLE page_permissions ADD COLUMN IF NOT EXISTS legacy_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS page_permissions_legacy_idx ON page_permissions(legacy_system,legacy_id) WHERE legacy_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS space_permissions (
   id uuid PRIMARY KEY,
@@ -143,8 +155,13 @@ CREATE TABLE IF NOT EXISTS space_permissions (
   permission text NOT NULL,
   subject_type text NOT NULL CHECK (subject_type IN ('USER','GROUP')),
   subject_id uuid NOT NULL,
+  legacy_system text,
+  legacy_id text,
   UNIQUE(space_id, permission, subject_type, subject_id)
 );
+ALTER TABLE space_permissions ADD COLUMN IF NOT EXISTS legacy_system text;
+ALTER TABLE space_permissions ADD COLUMN IF NOT EXISTS legacy_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS space_permissions_legacy_idx ON space_permissions(legacy_system,legacy_id) WHERE legacy_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS comments (
   id uuid PRIMARY KEY,
@@ -184,6 +201,28 @@ CREATE TABLE IF NOT EXISTS page_labels (
   PRIMARY KEY(page_id, label_id)
 );
 
+CREATE TABLE IF NOT EXISTS page_links (
+  id uuid PRIMARY KEY,
+  source_page_id uuid NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  target_page_id uuid REFERENCES pages(id) ON DELETE SET NULL,
+  legacy_target_id text NOT NULL DEFAULT '',
+  display_text text NOT NULL DEFAULT '',
+  link_type text NOT NULL,
+  target text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(source_page_id,link_type,target)
+);
+CREATE INDEX IF NOT EXISTS page_links_target_idx ON page_links(target_page_id);
+
+CREATE TABLE IF NOT EXISTS page_macros (
+  page_id uuid NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  page_version integer NOT NULL,
+  macro_name text NOT NULL,
+  supported boolean NOT NULL,
+  occurrence_count integer NOT NULL DEFAULT 1,
+  PRIMARY KEY(page_id,page_version,macro_name)
+);
+
 CREATE TABLE IF NOT EXISTS system_settings (
   key text PRIMARY KEY,
   value jsonb NOT NULL,
@@ -214,11 +253,75 @@ CREATE TABLE IF NOT EXISTS migration_jobs (
   processed_items bigint NOT NULL DEFAULT 0,
   failed_items bigint NOT NULL DEFAULT 0,
   checkpoint jsonb NOT NULL DEFAULT '{}'::jsonb,
+  options jsonb NOT NULL DEFAULT '{}'::jsonb,
+  current_entity text NOT NULL DEFAULT '',
+  cancel_requested boolean NOT NULL DEFAULT false,
   error text NOT NULL DEFAULT '',
   created_by uuid REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   started_at timestamptz,
   finished_at timestamptz
+);
+ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS options jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS current_entity text NOT NULL DEFAULT '';
+ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS cancel_requested boolean NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS migration_jobs_one_active_snapshot ON migration_jobs(kind) WHERE kind='SNAPSHOT' AND status IN ('PENDING','RUNNING','CANCEL_REQUESTED');
+
+CREATE TABLE IF NOT EXISTS migration_mapping (
+  id uuid PRIMARY KEY,
+  legacy_system text NOT NULL,
+  entity_type text NOT NULL,
+  legacy_id text NOT NULL,
+  target_id uuid NOT NULL,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(legacy_system, entity_type, legacy_id)
+);
+CREATE INDEX IF NOT EXISTS migration_mapping_target_idx ON migration_mapping(entity_type,target_id);
+
+CREATE TABLE IF NOT EXISTS migration_items (
+  id uuid PRIMARY KEY,
+  job_id uuid NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
+  entity_type text NOT NULL,
+  legacy_id text NOT NULL,
+  target_id uuid,
+  status text NOT NULL DEFAULT 'PENDING',
+  retry_count integer NOT NULL DEFAULT 0,
+  source_hash text NOT NULL DEFAULT '',
+  target_hash text NOT NULL DEFAULT '',
+  error text NOT NULL DEFAULT '',
+  details jsonb NOT NULL DEFAULT '{}'::jsonb,
+  started_at timestamptz,
+  finished_at timestamptz,
+  UNIQUE(job_id, entity_type, legacy_id)
+);
+CREATE INDEX IF NOT EXISTS migration_items_job_status_idx ON migration_items(job_id,status);
+
+CREATE TABLE IF NOT EXISTS unsupported_content (
+  id uuid PRIMARY KEY,
+  job_id uuid REFERENCES migration_jobs(id) ON DELETE SET NULL,
+  page_id uuid REFERENCES pages(id) ON DELETE CASCADE,
+  legacy_id text NOT NULL DEFAULT '',
+  kind text NOT NULL,
+  name text NOT NULL,
+  status text NOT NULL DEFAULT 'OPEN',
+  occurrence_count bigint NOT NULL DEFAULT 1,
+  sample text NOT NULL DEFAULT '',
+  resolution text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(job_id,page_id,kind,name)
+);
+
+CREATE TABLE IF NOT EXISTS macro_compatibility (
+  macro_name text PRIMARY KEY,
+  support_level text NOT NULL,
+  page_count bigint NOT NULL DEFAULT 0,
+  occurrence_count bigint NOT NULL DEFAULT 0,
+  conversion_rate numeric(5,2) NOT NULL DEFAULT 0,
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  details jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS migration_checks (

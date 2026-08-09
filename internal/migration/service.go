@@ -13,12 +13,9 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
-	"github.com/hkjang/kanvas/internal/store"
 )
 
 var validIdentifier = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
-
-type Service struct{ Store *store.Store }
 
 type TableInfo struct {
 	Name      string `json:"name"`
@@ -100,6 +97,9 @@ func (s *Service) Transition(ctx context.Context, target string, actor uuid.UUID
 }
 
 func (s *Service) transitionEvidence(ctx context.Context, current, target string) error {
+	if target == "CDC_SYNC" {
+		return errors.New("CDC engine is not implemented in this release; transition is fail-closed")
+	}
 	if current == "DISCOVERY" && target == "SNAPSHOT" {
 		var n int
 		if err := s.Store.Pool.QueryRow(ctx, `SELECT count(*) FROM schema_discovery`).Scan(&n); err != nil {

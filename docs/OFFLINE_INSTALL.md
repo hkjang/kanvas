@@ -5,8 +5,8 @@ GitHub Release에서 `kanvas-v<버전>.tar.gz` 하나를 내려받아 망 반입
 ## 1. 이미지 적재
 
 ```bash
-docker load < kanvas-v0.1.0.tar.gz
-docker image inspect kanvas-v0.1.0:latest
+docker load < kanvas-v0.2.0.tar.gz
+docker image inspect kanvas-v0.2.0:latest
 ```
 
 ## 2. 영구 볼륨
@@ -31,7 +31,7 @@ docker run -d \
   -e KANVAS_CONFLUENCE_DSN='readonly:REDACTED@tcp(mysql.internal:3306)/confluence?charset=utf8mb4&parseTime=true' \
   -e KANVAS_BOOTSTRAP_ADMIN='admin' \
   -e KANVAS_BOOTSTRAP_ADMIN_PASSWORD='REPLACE-WITH-LONG-EMERGENCY-PASSWORD' \
-  kanvas-v0.1.0:latest
+  kanvas-v0.2.0:latest
 ```
 
 Confluence를 아직 연결하지 않는 경우 `KANVAS_CONFLUENCE_DSN=''`를 전달합니다. DSN은 Go MySQL driver 형식이며 source account에는 SELECT 권한만 부여합니다.

@@ -22,6 +22,8 @@
 - 개인화 영역과 개인 API/MCP 키 발급·폐기·원자적 회전
 - 서비스 관리자 영역, 암호화 설정, 감사 로그, 내장 상태 화면
 - Read-only Confluence MySQL Schema Discovery, Core/AO/Unknown Table 분류
+- 재시작 가능한 Initial Snapshot: 사용자·그룹·멤버십·Space·페이지 전체 버전·댓글·첨부 메타데이터·ACL
+- Confluence Storage XHTML → Canonical AST/Editor JSON 변환과 Macro 호환성·미지원 콘텐츠 리포트
 - 증거 기반 Migration 상태 머신과 Cutover Gate
 - OpenAPI 문서와 8개 ACL-aware MCP Tool
 - 로그인 화면과 프로필 컨텍스트 메뉴의 서비스 버전 표시
@@ -57,7 +59,7 @@ docker compose up --build
 go test ./...
 npm ci --prefix web
 npm run build --prefix web
-docker build -t kanvas-v0.1.0:latest .
+docker build -t kanvas-v0.2.0:latest .
 ```
 
 ## 문서

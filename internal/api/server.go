@@ -72,7 +72,15 @@ func New(st *store.Store, authManager *auth.Manager, migrationService *migration
 	mux.HandleFunc("POST /api/v1/admin/connections/postgres/test", s.testPostgres)
 	mux.HandleFunc("GET /api/v1/admin/migration", s.adminMigration)
 	mux.HandleFunc("POST /api/v1/admin/migration/discovery", s.runDiscovery)
+	mux.HandleFunc("POST /api/v1/admin/migration/snapshot", s.startSnapshot)
 	mux.HandleFunc("POST /api/v1/admin/migration/transition", s.migrationTransition)
+	mux.HandleFunc("GET /api/v1/admin/migration/jobs", s.migrationJobs)
+	mux.HandleFunc("GET /api/v1/admin/migration/jobs/{jobID}", s.migrationJob)
+	mux.HandleFunc("POST /api/v1/admin/migration/jobs/{jobID}/cancel", s.cancelMigrationJob)
+	mux.HandleFunc("POST /api/v1/admin/migration/jobs/{jobID}/resume", s.resumeMigrationJob)
+	mux.HandleFunc("GET /api/v1/admin/migration/jobs/{jobID}/items", s.migrationJobItems)
+	mux.HandleFunc("GET /api/v1/admin/migration/macros", s.migrationMacros)
+	mux.HandleFunc("GET /api/v1/admin/migration/unsupported", s.unsupportedContent)
 	mux.HandleFunc("GET /api/v1/admin/audit", s.auditEvents)
 	mux.HandleFunc("GET /api/v1/admin/status", s.adminStatus)
 	mux.HandleFunc("GET /api/openapi.yaml", s.openAPI)
@@ -577,6 +585,144 @@ func (s *Server) runDiscovery(w http.ResponseWriter, r *http.Request) {
 	}
 	respond(w, v, err)
 }
+func (s *Server) startSnapshot(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	options := migration.DefaultSnapshotOptions()
+	if r.ContentLength > 0 && !decodeJSON(w, r, &options) {
+		return
+	}
+	dsn, err := s.effectiveConfluenceDSN(r.Context())
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	job, err := s.Migration.StartSnapshot(r.Context(), dsn, id.User.ID, options)
+	respondStatus(w, http.StatusAccepted, job, err)
+}
+func (s *Server) migrationJobs(w http.ResponseWriter, r *http.Request) {
+	_, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	jobs, err := s.Migration.Jobs(r.Context(), 100)
+	respond(w, jobs, err)
+}
+func (s *Server) migrationJob(w http.ResponseWriter, r *http.Request) {
+	_, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	jobID, err := uuid.Parse(r.PathValue("jobID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid job ID")
+		return
+	}
+	job, err := s.Migration.Job(r.Context(), jobID)
+	respond(w, job, err)
+}
+func (s *Server) cancelMigrationJob(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	jobID, err := uuid.Parse(r.PathValue("jobID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid job ID")
+		return
+	}
+	err = s.Migration.CancelJob(r.Context(), jobID, id.User.ID)
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	respond(w, nil, err)
+}
+func (s *Server) resumeMigrationJob(w http.ResponseWriter, r *http.Request) {
+	id, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	jobID, err := uuid.Parse(r.PathValue("jobID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid job ID")
+		return
+	}
+	dsn, err := s.effectiveConfluenceDSN(r.Context())
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	job, err := s.Migration.ResumeSnapshot(r.Context(), dsn, jobID, id.User.ID)
+	respondStatus(w, http.StatusAccepted, job, err)
+}
+func (s *Server) migrationJobItems(w http.ResponseWriter, r *http.Request) {
+	_, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	jobID, err := uuid.Parse(r.PathValue("jobID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid job ID")
+		return
+	}
+	items, err := s.Migration.JobItems(r.Context(), jobID, r.URL.Query().Get("status"), 500)
+	respond(w, items, err)
+}
+func (s *Server) migrationMacros(w http.ResponseWriter, r *http.Request) {
+	_, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	rows, err := s.Store.Pool.Query(r.Context(), `SELECT macro_name,support_level,page_count,occurrence_count,conversion_rate,last_seen_at,details FROM macro_compatibility ORDER BY occurrence_count DESC,macro_name`)
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	defer rows.Close()
+	var out []map[string]any
+	for rows.Next() {
+		var name, level string
+		var pages, occurrences int64
+		var rate float64
+		var seen time.Time
+		var details json.RawMessage
+		if err = rows.Scan(&name, &level, &pages, &occurrences, &rate, &seen, &details); err != nil {
+			respond(w, nil, err)
+			return
+		}
+		out = append(out, map[string]any{"name": name, "supportLevel": level, "pageCount": pages, "occurrenceCount": occurrences, "conversionRate": rate, "lastSeenAt": seen, "details": details})
+	}
+	respond(w, out, rows.Err())
+}
+func (s *Server) unsupportedContent(w http.ResponseWriter, r *http.Request) {
+	_, ok := s.authorize(w, r, "ADMIN", "*")
+	if !ok {
+		return
+	}
+	rows, err := s.Store.Pool.Query(r.Context(), `SELECT id,job_id,page_id,legacy_id,kind,name,status,occurrence_count,sample,resolution,created_at,updated_at FROM unsupported_content ORDER BY status,kind,name LIMIT 1000`)
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	defer rows.Close()
+	var out []map[string]any
+	for rows.Next() {
+		var id uuid.UUID
+		var jobID, pageID *uuid.UUID
+		var legacyID, kind, name, status, sample, resolution string
+		var count int64
+		var created, updated time.Time
+		if err = rows.Scan(&id, &jobID, &pageID, &legacyID, &kind, &name, &status, &count, &sample, &resolution, &created, &updated); err != nil {
+			respond(w, nil, err)
+			return
+		}
+		out = append(out, map[string]any{"id": id, "jobId": jobID, "pageId": pageID, "legacyId": legacyID, "kind": kind, "name": name, "status": status, "occurrenceCount": count, "sample": sample, "resolution": resolution, "createdAt": created, "updatedAt": updated})
+	}
+	respond(w, out, rows.Err())
+}
 func (s *Server) migrationTransition(w http.ResponseWriter, r *http.Request) {
 	id, ok := s.authorize(w, r, "ADMIN", "*")
 	if !ok {
@@ -802,6 +948,18 @@ func respondStatus(w http.ResponseWriter, status int, value any, err error) {
 	}
 	if strings.Contains(err.Error(), "version conflict") {
 		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "already active") {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "not implemented in this release") {
+		writeError(w, http.StatusNotImplemented, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "must complete before snapshot") {
+		writeError(w, http.StatusPreconditionFailed, err.Error())
 		return
 	}
 	if strings.Contains(err.Error(), "permission denied") || strings.Contains(err.Error(), "gate rejected") || strings.Contains(err.Error(), "invalid migration transition") {

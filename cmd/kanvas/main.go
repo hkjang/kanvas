@@ -54,6 +54,10 @@ func main() {
 	}
 	authManager := &auth.Manager{Store: st, Vault: vault}
 	migrationService := &migration.Service{Store: st}
+	if err = migrationService.RecoverInterruptedJobs(ctx); err != nil {
+		logger.Error("migration job recovery failed", "error", err)
+		os.Exit(1)
+	}
 	handler := api.New(st, authManager, migrationService, vault, cfg.ConfluenceDSN, webembed.Handler(), logger)
 	server := &http.Server{Addr: cfg.ListenAddress, Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 2 * time.Minute, IdleTimeout: 2 * time.Minute, MaxHeaderBytes: 1 << 20}
 	done := make(chan os.Signal, 1)

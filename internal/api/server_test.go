@@ -1,6 +1,11 @@
 package api
 
-import "testing"
+import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestConnectionFingerprintDoesNotLeakDSN(t *testing.T) {
 	dsn := "postgres://user:supersecret@db/kanvas"
@@ -15,5 +20,13 @@ func TestConnectionFingerprintDoesNotLeakDSN(t *testing.T) {
 func TestValidScopes(t *testing.T) {
 	if !validScopes([]string{"wiki:read", "wiki:write"}) || validScopes([]string{"admin"}) || validScopes(nil) {
 		t.Fatal("scope validation failed")
+	}
+}
+
+func TestNotImplementedMigrationStepIsExplicit(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	respond(recorder, nil, errors.New("CDC engine is not implemented in this release; transition is fail-closed"))
+	if recorder.Code != http.StatusNotImplemented {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotImplemented)
 	}
 }
