@@ -265,7 +265,7 @@ func (s *Store) Settings(ctx context.Context) ([]Setting, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var result []Setting
+	result := make([]Setting, 0)
 	for rows.Next() {
 		var v Setting
 		if err := rows.Scan(&v.Key, &v.Value, &v.Secret, &v.Description, &v.UpdatedAt); err != nil {
@@ -321,7 +321,7 @@ func (s *Store) APIKeys(ctx context.Context, userID uuid.UUID) ([]APIKey, error)
 		return nil, err
 	}
 	defer rows.Close()
-	var out []APIKey
+	out := make([]APIKey, 0)
 	for rows.Next() {
 		var k APIKey
 		if err := rows.Scan(&k.ID, &k.Name, &k.Prefix, &k.Scopes, &k.ExpiresAt, &k.LastUsedAt, &k.CreatedAt, &k.RevokedAt); err != nil {
@@ -404,7 +404,7 @@ func (s *Store) ListSpaces(ctx context.Context, userID uuid.UUID) ([]Space, erro
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Space
+	out := make([]Space, 0)
 	for rows.Next() {
 		var v Space
 		if err := rows.Scan(&v.ID, &v.Key, &v.Name, &v.Description, &v.Status, &v.UpdatedAt); err != nil {
@@ -435,7 +435,7 @@ func (s *Store) PagesInSpace(ctx context.Context, userID, spaceID uuid.UUID) ([]
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Page
+	out := make([]Page, 0)
 	for rows.Next() {
 		p, err := scanPage(rows)
 		if err != nil {
@@ -567,7 +567,7 @@ func (s *Store) PageVersions(ctx context.Context, userID, pageID uuid.UUID) ([]P
 		return nil, err
 	}
 	defer rows.Close()
-	var out []PageVersion
+	out := make([]PageVersion, 0)
 	for rows.Next() {
 		var v PageVersion
 		if err := rows.Scan(&v.ID, &v.Version, &v.Title, &v.EditorDocument, &v.RenderedText, &v.ChangeMessage, &v.CreatedBy, &v.CreatedAt); err != nil {
@@ -588,7 +588,7 @@ func (s *Store) SearchPages(ctx context.Context, userID uuid.UUID, q string, lim
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Page
+	out := make([]Page, 0)
 	for rows.Next() {
 		p, err := scanPage(rows)
 		if err != nil {
@@ -611,7 +611,7 @@ func (s *Store) Comments(ctx context.Context, userID, pageID uuid.UUID) ([]Comme
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Comment
+	out := make([]Comment, 0)
 	for rows.Next() {
 		var c Comment
 		if err := rows.Scan(&c.ID, &c.PageID, &c.ParentID, &c.Body, &c.ResolvedAt, &c.CreatedBy, &c.CreatedAt); err != nil {

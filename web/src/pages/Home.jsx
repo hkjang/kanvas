@@ -9,7 +9,10 @@ export function Home({ account }) {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ key: '', name: '', description: '' })
   const navigate = useNavigate()
-  useEffect(() => { if (spaces[0]) api(`/api/v1/spaces/${spaces[0].id}/pages`).then(setRecent).catch(() => {}) }, [spaces])
+  useEffect(() => {
+    if (!spaces[0]) { setRecent([]); return }
+    api(`/api/v1/spaces/${spaces[0].id}/pages`).then(value => setRecent(value || [])).catch(() => setRecent([]))
+  }, [spaces])
   const create = async e => { e.preventDefault(); const space = await api('/api/v1/spaces', { method: 'POST', body: JSON.stringify(form) }); setSpaces([...spaces, space]); setShowCreate(false); navigate(`/spaces/${space.id}`) }
   return <div className="page-frame home-page">
     <header className="welcome"><div><p className="eyebrow">KNOWLEDGE HOME</p><h1>안녕하세요, {account.user.displayName}님.</h1><p>팀의 지식을 찾고, 이어 쓰고, 안전하게 이전하세요.</p></div><button className="button primary" onClick={() => setShowCreate(true)}><FilePlus2 size={18} /> 새 스페이스</button></header>

@@ -212,7 +212,7 @@ func (s *Service) Jobs(ctx context.Context, limit int) ([]Job, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Job
+	out := make([]Job, 0)
 	for rows.Next() {
 		v, err := scanJob(rows)
 		if err != nil {
@@ -239,7 +239,7 @@ func (s *Service) JobItems(ctx context.Context, jobID uuid.UUID, status string, 
 		return nil, err
 	}
 	defer rows.Close()
-	var out []MigrationItem
+	out := make([]MigrationItem, 0)
 	for rows.Next() {
 		var v MigrationItem
 		if err := rows.Scan(&v.ID, &v.JobID, &v.EntityType, &v.LegacyID, &v.TargetID, &v.Status, &v.RetryCount, &v.Error, &v.Details, &v.FinishedAt); err != nil {

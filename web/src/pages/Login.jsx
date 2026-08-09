@@ -19,7 +19,7 @@ export function Login({ version, onLogin }) {
 
   return <main className="login-page">
     <section className="login-story">
-      <div className="brand-lockup"><Logo /><strong>Kanvas</strong></div>
+      <div className="brand-lockup"><Logo /><strong>{config.product || 'Kanvas'}</strong></div>
       <div className="story-copy">
         <p className="eyebrow">KNOWLEDGE, CONTINUED</p>
         <h1>지식을 옮기고,<br />더 나은 문서로 이어가세요.</h1>
@@ -29,7 +29,7 @@ export function Login({ version, onLogin }) {
     </section>
     <section className="login-panel">
       <div className="login-card">
-        <div><p className="eyebrow">WELCOME BACK</p><h2>Kanvas 로그인</h2><p className="muted">계속하려면 사내 계정으로 인증하세요.</p></div>
+        <div><p className="eyebrow">WELCOME BACK</p><h2>{config.product || 'Kanvas'} 로그인</h2><p className="muted">계속하려면 사내 계정으로 인증하세요.</p></div>
         {config.oidcEnabled && <a className="button oidc-button" href="/api/v1/auth/oidc/login"><ShieldCheck size={18} /> Keycloak SSO로 계속 <ArrowRight size={17} /></a>}
         {config.oidcEnabled && <div className="divider"><span>또는 비상 관리자 계정</span></div>}
         <form onSubmit={submit}>

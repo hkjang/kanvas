@@ -3,7 +3,7 @@ package api
 const openAPISpec = `openapi: 3.1.0
 info:
   title: Kanvas API
-  version: 0.2.0
+  version: 0.3.0
   description: ACL-aware Wiki, administration, migration, and personal key API.
 servers:
   - url: /api/v1
@@ -57,6 +57,100 @@ paths:
     post:
       operationId: createPersonalAPIKey
       responses: { "201": { description: API key; token is returned once } }
+  /admin/overview:
+    get:
+      operationId: getAdminOverview
+      responses: { "200": { description: Service-wide user, content, session, key, audit, and exception counters } }
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      parameters: [{ name: q, in: query, required: false, schema: { type: string } }]
+      responses: { "200": { description: Users with group counts and account state } }
+  /admin/users/{userId}:
+    patch:
+      operationId: updateAdminUser
+      parameters: [{ name: userId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserUpdate' }
+      responses:
+        "200": { description: User role and state updated; disabling revokes sessions and API keys }
+        "409": { description: Self-disable or last-active-administrator guard rejected the update }
+  /admin/groups:
+    get:
+      operationId: listAdminGroups
+      responses: { "200": { description: Groups and member counts } }
+    post:
+      operationId: createAdminGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminGroupCreate' }
+      responses:
+        "201": { description: Group created }
+        "409": { description: Group name already exists }
+  /admin/groups/{groupId}/members:
+    get:
+      operationId: listAdminGroupMembers
+      parameters: [{ name: groupId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Group members } }
+    post:
+      operationId: addAdminGroupMember
+      parameters: [{ name: groupId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties: { userId: { type: string, format: uuid } }
+      responses: { "200": { description: Membership added idempotently } }
+  /admin/groups/{groupId}/members/{userId}:
+    delete:
+      operationId: removeAdminGroupMember
+      parameters:
+        - { name: groupId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "204": { description: Membership removed }, "404": { description: Membership not found } }
+  /admin/spaces:
+    get:
+      operationId: listAdminSpaces
+      responses: { "200": { description: Active and archived spaces with page and attachment counts } }
+  /admin/spaces/{spaceId}:
+    patch:
+      operationId: updateAdminSpaceStatus
+      parameters: [{ name: spaceId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties: { status: { type: string, enum: [ACTIVE, ARCHIVED] } }
+      responses: { "200": { description: Space archived or restored } }
+  /admin/settings:
+    get:
+      operationId: listAdminSettings
+      responses: { "200": { description: Managed settings and redacted environment connection fingerprints } }
+    put:
+      operationId: putAdminSetting
+      responses: { "200": { description: Validated setting encrypted when marked secret and saved with audit history } }
+  /admin/audit:
+    get:
+      operationId: listAuditEvents
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string } }
+        - { name: action, in: query, required: false, schema: { type: string } }
+      responses: { "200": { description: Filtered administration audit events } }
+  /admin/status:
+    get:
+      operationId: getAdminStatus
+      responses: { "200": { description: Database pool, Go runtime, memory, uptime, and build status } }
   /admin/migration:
     get:
       operationId: getMigrationDashboard
@@ -118,6 +212,18 @@ components:
       scheme: bearer
       description: Personal Kanvas API key (knv_...). Browser clients may use the secure session cookie and X-CSRF-Token.
   schemas:
+    AdminUserUpdate:
+      type: object
+      required: [role, status]
+      properties:
+        role: { type: string, enum: [USER, ADMIN] }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    AdminGroupCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string }
     SnapshotOptions:
       type: object
       properties:

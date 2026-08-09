@@ -8,7 +8,7 @@ COPY webembed/ /src/webembed/
 RUN npm run build
 
 FROM golang:1.26-alpine AS go-builder
-ARG VERSION=0.2.0-dev
+ARG VERSION=0.3.0-dev
 ARG COMMIT=unknown
 ARG BUILT_AT=unknown
 WORKDIR /src

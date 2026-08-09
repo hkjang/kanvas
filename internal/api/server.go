@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
+	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +24,7 @@ import (
 	"github.com/hkjang/kanvas/internal/security"
 	"github.com/hkjang/kanvas/internal/store"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,12 +37,13 @@ type Server struct {
 	ConfluenceDSN string
 	Static        http.Handler
 	Logger        *slog.Logger
+	StartedAt     time.Time
 	loginMu       sync.Mutex
 	loginAttempts map[string][]time.Time
 }
 
 func New(st *store.Store, authManager *auth.Manager, migrationService *migration.Service, vault *security.Vault, confluenceDSN string, static http.Handler, logger *slog.Logger) http.Handler {
-	s := &Server{Store: st, Auth: authManager, Migration: migrationService, MCP: &mcp.Handler{Store: st}, Vault: vault, ConfluenceDSN: confluenceDSN, Static: static, Logger: logger, loginAttempts: map[string][]time.Time{}}
+	s := &Server{Store: st, Auth: authManager, Migration: migrationService, MCP: &mcp.Handler{Store: st}, Vault: vault, ConfluenceDSN: confluenceDSN, Static: static, Logger: logger, StartedAt: time.Now().UTC(), loginAttempts: map[string][]time.Time{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /readyz", s.ready)
@@ -67,6 +72,16 @@ func New(st *store.Store, authManager *auth.Manager, migrationService *migration
 	mux.HandleFunc("DELETE /api/v1/personal/api-keys/{keyID}", s.revokeAPIKey)
 	mux.HandleFunc("GET /api/v1/admin/settings", s.adminSettings)
 	mux.HandleFunc("PUT /api/v1/admin/settings", s.adminSettings)
+	mux.HandleFunc("GET /api/v1/admin/overview", s.adminOverview)
+	mux.HandleFunc("GET /api/v1/admin/users", s.adminUsers)
+	mux.HandleFunc("PATCH /api/v1/admin/users/{userID}", s.updateAdminUser)
+	mux.HandleFunc("GET /api/v1/admin/groups", s.adminGroups)
+	mux.HandleFunc("POST /api/v1/admin/groups", s.adminGroups)
+	mux.HandleFunc("GET /api/v1/admin/groups/{groupID}/members", s.adminGroupMembers)
+	mux.HandleFunc("POST /api/v1/admin/groups/{groupID}/members", s.adminGroupMembers)
+	mux.HandleFunc("DELETE /api/v1/admin/groups/{groupID}/members/{userID}", s.removeAdminGroupMember)
+	mux.HandleFunc("GET /api/v1/admin/spaces", s.adminSpaces)
+	mux.HandleFunc("PATCH /api/v1/admin/spaces/{spaceID}", s.updateAdminSpace)
 	mux.HandleFunc("GET /api/v1/admin/oidc", s.adminOIDC)
 	mux.HandleFunc("PUT /api/v1/admin/oidc", s.adminOIDC)
 	mux.HandleFunc("POST /api/v1/admin/connections/postgres/test", s.testPostgres)
@@ -110,7 +125,14 @@ func (s *Server) authConfig(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.Logger.Warn("load OIDC config", "error", err)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"oidcEnabled": err == nil && cfg.Enabled, "localLoginEnabled": true, "product": "Kanvas"})
+	product := "Kanvas"
+	if raw, _, settingErr := s.Store.Setting(r.Context(), "site.name"); settingErr == nil {
+		_ = json.Unmarshal(raw, &product)
+		if strings.TrimSpace(product) == "" {
+			product = "Kanvas"
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"oidcEnabled": err == nil && cfg.Enabled, "localLoginEnabled": true, "product": product})
 }
 
 func (s *Server) localLogin(w http.ResponseWriter, r *http.Request) {
@@ -475,6 +497,10 @@ func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "setting key is not managed by this endpoint")
 		return
 	}
+	if err := validateManagedSetting(in.Key, in.Value); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	value := in.Value
 	if in.Secret {
 		plain, ok := in.Value.(string)
@@ -682,7 +708,7 @@ func (s *Server) migrationMacros(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	var out []map[string]any
+	out := make([]map[string]any, 0)
 	for rows.Next() {
 		var name, level string
 		var pages, occurrences int64
@@ -708,7 +734,7 @@ func (s *Server) unsupportedContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	var out []map[string]any
+	out := make([]map[string]any, 0)
 	for rows.Next() {
 		var id uuid.UUID
 		var jobID, pageID *uuid.UUID
@@ -747,13 +773,18 @@ func (s *Server) auditEvents(w http.ResponseWriter, r *http.Request) {
 	if limit < 1 || limit > 500 {
 		limit = 100
 	}
-	rows, err := s.Store.Pool.Query(r.Context(), `SELECT a.id,coalesce(u.display_name,'System'),a.action,a.resource_type,a.resource_id,a.remote_addr,a.detail,a.created_at FROM audit_events a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.created_at DESC LIMIT $1`, limit)
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	action := strings.TrimSpace(r.URL.Query().Get("action"))
+	rows, err := s.Store.Pool.Query(r.Context(), `SELECT a.id,coalesce(u.display_name,'System'),a.action,a.resource_type,a.resource_id,a.remote_addr,a.detail,a.created_at
+		FROM audit_events a LEFT JOIN users u ON u.id=a.actor_id
+		WHERE ($2='' OR a.action ILIKE '%'||$2||'%' OR a.resource_type ILIKE '%'||$2||'%' OR a.resource_id ILIKE '%'||$2||'%' OR coalesce(u.display_name,'System') ILIKE '%'||$2||'%')
+		AND ($3='' OR a.action=$3) ORDER BY a.created_at DESC LIMIT $1`, limit, query, action)
 	if err != nil {
 		respond(w, nil, err)
 		return
 	}
 	defer rows.Close()
-	var out []map[string]any
+	out := make([]map[string]any, 0)
 	for rows.Next() {
 		var id uuid.UUID
 		var actor, action, rt, rid, remote string
@@ -773,7 +804,13 @@ func (s *Server) adminStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stats := s.Store.Pool.Stat()
-	writeJSON(w, http.StatusOK, map[string]any{"service": buildinfo.Current(), "database": map[string]any{"status": "connected", "totalConnections": stats.TotalConns(), "idleConnections": stats.IdleConns(), "acquiredConnections": stats.AcquiredConns()}, "runtime": map[string]any{"time": time.Now().UTC()}})
+	var memory runtime.MemStats
+	runtime.ReadMemStats(&memory)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"service":  buildinfo.Current(),
+		"database": map[string]any{"status": "connected", "totalConnections": stats.TotalConns(), "idleConnections": stats.IdleConns(), "acquiredConnections": stats.AcquiredConns(), "maxConnections": stats.MaxConns()},
+		"runtime":  map[string]any{"time": time.Now().UTC(), "startedAt": s.StartedAt, "uptimeSeconds": int64(time.Since(s.StartedAt).Seconds()), "goroutines": runtime.NumGoroutine(), "memoryAllocBytes": memory.Alloc, "memorySystemBytes": memory.Sys, "goVersion": runtime.Version()},
+	})
 }
 
 func (s *Server) openAPI(w http.ResponseWriter, r *http.Request) {
@@ -925,6 +962,41 @@ func connectionFingerprint(dsn string) map[string]any {
 	return map[string]any{"configured": true, "fingerprint": fmt.Sprintf("%x", sum[:6])}
 }
 
+func validateManagedSetting(key string, value any) error {
+	stringValue, isString := value.(string)
+	numberValue, isNumber := value.(float64)
+	switch key {
+	case "site.name":
+		if !isString || strings.TrimSpace(stringValue) == "" || len([]rune(stringValue)) > 80 {
+			return errors.New("site name must contain 1 to 80 characters")
+		}
+	case "site.base_url":
+		if !isString {
+			return errors.New("site base URL must be a string")
+		}
+		if strings.TrimSpace(stringValue) == "" {
+			return nil
+		}
+		parsed, err := url.Parse(strings.TrimSpace(stringValue))
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil {
+			return errors.New("site base URL must be an absolute HTTP(S) URL without credentials")
+		}
+	case "security.session_hours":
+		if !isNumber || math.Trunc(numberValue) != numberValue || numberValue < 1 || numberValue > 168 {
+			return errors.New("session duration must be an integer from 1 to 168 hours")
+		}
+	case "migration.batch_size":
+		if !isNumber || math.Trunc(numberValue) != numberValue || numberValue < 10 || numberValue > 5000 {
+			return errors.New("migration batch size must be an integer from 10 to 5000")
+		}
+	case "migration.parallelism", "attachments.copy_threads":
+		if !isNumber || math.Trunc(numberValue) != numberValue || numberValue < 1 || numberValue > 32 {
+			return errors.New("worker count must be an integer from 1 to 32")
+		}
+	}
+	return nil
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20))
 	dec.DisallowUnknownFields()
@@ -946,12 +1018,25 @@ func respondStatus(w http.ResponseWriter, status int, value any, err error) {
 		writeError(w, http.StatusNotFound, "resource not found")
 		return
 	}
+	var postgresError *pgconn.PgError
+	if errors.As(err, &postgresError) && postgresError.Code == "23505" {
+		writeError(w, http.StatusConflict, "resource already exists")
+		return
+	}
 	if strings.Contains(err.Error(), "version conflict") {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
 	if strings.Contains(err.Error(), "already active") {
 		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "last active administrator") || strings.Contains(err.Error(), "your own administrator account") {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "must be USER or ADMIN") || strings.Contains(err.Error(), "must be ACTIVE or DISABLED") || strings.Contains(err.Error(), "status must be ACTIVE or ARCHIVED") || strings.Contains(err.Error(), "group name is required") {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if strings.Contains(err.Error(), "not implemented in this release") {

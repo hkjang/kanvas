@@ -20,7 +20,8 @@
 - Wiki Space, Page, 구조화 Editor JSON, 불변 Page Version, Comment, 검색
 - User/Group 기반 Space·Page ACL을 REST API와 MCP에 동일 적용
 - 개인화 영역과 개인 API/MCP 키 발급·폐기·원자적 회전
-- 서비스 관리자 영역, 암호화 설정, 감사 로그, 내장 상태 화면
+- 운영 현황 대시보드와 사용자 역할·상태, 그룹 멤버십, Space 보관을 관리하는 서비스 관리자 영역
+- 사이트 이름·기준 URL·세션 만료 등 검증된 운영 설정, 감사 로그 검색·CSV 내보내기, 런타임 상태 화면
 - Read-only Confluence MySQL Schema Discovery, Core/AO/Unknown Table 분류
 - 재시작 가능한 Initial Snapshot: 사용자·그룹·멤버십·Space·페이지 전체 버전·댓글·첨부 메타데이터·ACL
 - Confluence Storage XHTML → Canonical AST/Editor JSON 변환과 Macro 호환성·미지원 콘텐츠 리포트
@@ -59,7 +60,7 @@ docker compose up --build
 go test ./...
 npm ci --prefix web
 npm run build --prefix web
-docker build -t kanvas-v0.2.0:latest .
+docker build -t kanvas-v0.3.0:latest .
 ```
 
 ## 문서

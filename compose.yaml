@@ -18,10 +18,10 @@ services:
     build:
       context: .
       args:
-        VERSION: 0.2.0-dev
+        VERSION: 0.3.0-dev
         COMMIT: local
         BUILT_AT: local
-    image: kanvas-v0.2.0:local
+    image: kanvas-v0.3.0:local
     environment:
       KANVAS_POSTGRES_DSN: postgres://kanvas:${POSTGRES_PASSWORD:-change-this-postgres-password}@postgres:5432/kanvas?sslmode=disable
       KANVAS_CONFLUENCE_DSN: ${KANVAS_CONFLUENCE_DSN:-}

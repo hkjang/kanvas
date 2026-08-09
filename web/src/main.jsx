@@ -44,7 +44,7 @@ function App() {
         <Route path="pages/:pageId" element={<PageView />} />
         <Route path="pages/:pageId/edit" element={<PageEdit />} />
         <Route path="personal/*" element={<Personal account={account} version={version} />} />
-        <Route path="admin/*" element={account.user.role === 'ADMIN' ? <Admin version={version} /> : <Navigate to="/" replace />} />
+        <Route path="admin/*" element={account.user.role === 'ADMIN' ? <Admin account={account} version={version} /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

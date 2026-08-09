@@ -1,6 +1,6 @@
 # Kanvas 엔터프라이즈 관리자 가이드 (Admin & Operational Guide)
 
-- **문서 버전**: v0.1.0-ENTERPRISE  
+- **문서 버전**: v0.3.0
 - **작성일자**: 2026년 8월 9일  
 - **대상**: 시스템 관리자, Security/DevOps 엔지니어, 데이터 마이그레이션 담당자  
 - **문서 개요**: Kanvas 4대 환경변수 부트스트랩, Confluence Discovery & Migration Machine 제어, Keycloak OIDC SSO 및 감사 로그 운영  
@@ -45,5 +45,27 @@ Confluence 데이터를 무중단 이관하기 위한 4단계 상태 머신 운�
 
 ## 4. API / MCP 키 관리 & 감사 로그 (Audit Log)
 
-- **원자적 키 회전**: 보안 사고 발생 시 관리자 화면에서 [전체 개인 키 즉시 폐기] 기능을 실행하여 발급된 모든 API/MCP 키를 일괄 상실 처리할 수 있습니다.
+- **원자적 개인 키 회전**: 개인화 → API 및 MCP 키에서 새 키를 발급하거나 회전합니다. 회전 시 기존 키는 같은 트랜잭션에서 즉시 폐기되고 새 평문은 한 번만 표시됩니다.
 - **감사 로그 (Audit Trail)**: 문서 삭제, ACL 변경, Migration Cutover 승인 등 모든 관리자 및 사용자 활동이 DB 감사 테이블에 무결성 보장 상태로 영구 보관됩니다.
+
+---
+
+## 5. 서비스 관리 메뉴
+
+서비스 관리 화면은 일반 개인화 화면과 분리되어 있으며 `ADMIN` 역할만 접근할 수 있습니다.
+
+| 메뉴 그룹 | 메뉴 | 운영 기능 |
+|---|---|---|
+| 운영 | 개요 | 사용자·Space·세션·키·감사·Migration 준비도 통합 관제 |
+| 운영 | 서비스 상태 | PostgreSQL pool, uptime, goroutine, memory, build 정보 5초 갱신 |
+| 운영 | 감사 로그 | 작업·행위자·리소스 검색, 작업 필터, 상세 보기, CSV 내보내기 |
+| 워크스페이스 | 사용자 | 역할 변경, 활성·비활성 전환, 사용자 검색과 상태 필터 |
+| 워크스페이스 | 그룹 | 그룹 생성, 멤버 추가·제거, ACL 그룹 현황 확인 |
+| 워크스페이스 | Space | 문서·첨부 수 확인, Space 보관과 복원 |
+| 데이터 및 전환 | 데이터 원본 | DSN fingerprint, PostgreSQL 진단, Snapshot 처리 정책 |
+| 데이터 및 전환 | Migration Center | Discovery, Snapshot, 오류 확인·재개, Macro·Cutover Gate 근거 |
+| 플랫폼 | 인증 및 SSO | Keycloak Issuer, Client ID/Secret, 그룹 claim과 관리자 그룹 |
+| 플랫폼 | API 및 MCP | 개인 키·세션 현황, REST/MCP endpoint와 보안 기본값 |
+| 플랫폼 | 운영 설정 | 서비스 표시명, 기준 URL, 세션 유지 시간, 부팅 환경 확인 |
+
+사용자 비활성화 시 해당 사용자의 세션은 삭제되고 개인 API 키는 모두 폐기됩니다. 현재 로그인한 관리자 자신의 비활성화와 마지막 활성 관리자 강등·비활성화는 서버에서 거부합니다.

@@ -88,11 +88,19 @@ func (m *Manager) NewSession(w http.ResponseWriter, r *http.Request, u store.Use
 	if err != nil {
 		return err
 	}
-	expires := time.Now().Add(12 * time.Hour)
+	sessionHours := 12
+	if raw, _, settingErr := m.Store.Setting(r.Context(), "security.session_hours"); settingErr == nil {
+		var configured int
+		if json.Unmarshal(raw, &configured) == nil && configured >= 1 && configured <= 168 {
+			sessionHours = configured
+		}
+	}
+	duration := time.Duration(sessionHours) * time.Hour
+	expires := time.Now().Add(duration)
 	if err = m.Store.CreateSession(r.Context(), u.ID, security.HashToken(token), csrf, remoteAddr(r), r.UserAgent(), expires); err != nil {
 		return err
 	}
-	http.SetCookie(w, &http.Cookie{Name: SessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: isSecure(r), SameSite: http.SameSiteLaxMode, Expires: expires, MaxAge: int((12 * time.Hour).Seconds())})
+	http.SetCookie(w, &http.Cookie{Name: SessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: isSecure(r), SameSite: http.SameSiteLaxMode, Expires: expires, MaxAge: int(duration.Seconds())})
 	return nil
 }
 
@@ -278,7 +286,14 @@ func (m *Manager) oidcClient(r *http.Request) (OIDCSettings, *oidc.Provider, *oa
 	if err != nil {
 		return cfg, nil, nil, fmt.Errorf("discover OIDC issuer: %w", err)
 	}
-	redirect := requestBaseURL(r) + "/api/v1/auth/oidc/callback"
+	baseURL := requestBaseURL(r)
+	if raw, _, settingErr := m.Store.Setting(r.Context(), "site.base_url"); settingErr == nil {
+		var configured string
+		if json.Unmarshal(raw, &configured) == nil && strings.TrimSpace(configured) != "" {
+			baseURL = strings.TrimRight(strings.TrimSpace(configured), "/")
+		}
+	}
+	redirect := baseURL + "/api/v1/auth/oidc/callback"
 	oauthCfg := &oauth2.Config{ClientID: cfg.ClientID, ClientSecret: cfg.ClientSecret, Endpoint: provider.Endpoint(), RedirectURL: redirect, Scopes: []string{oidc.ScopeOpenID, "profile", "email"}}
 	return cfg, provider, oauthCfg, nil
 }
