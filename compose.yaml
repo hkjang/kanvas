@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: kanvas
+      POSTGRES_USER: kanvas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-postgres-password}
+    volumes:
+      - kanvas-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanvas -d kanvas"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  kanvas:
+    build:
+      context: .
+      args:
+        VERSION: 0.1.0-dev
+        COMMIT: local
+        BUILT_AT: local
+    image: kanvas-v0.1.0:local
+    environment:
+      KANVAS_POSTGRES_DSN: postgres://kanvas:${POSTGRES_PASSWORD:-change-this-postgres-password}@postgres:5432/kanvas?sslmode=disable
+      KANVAS_CONFLUENCE_DSN: ${KANVAS_CONFLUENCE_DSN:-}
+      KANVAS_BOOTSTRAP_ADMIN: ${KANVAS_BOOTSTRAP_ADMIN:-admin}
+      KANVAS_BOOTSTRAP_ADMIN_PASSWORD: ${KANVAS_BOOTSTRAP_ADMIN_PASSWORD:-change-this-bootstrap-password}
+    ports:
+      - "8080:8080"
+    volumes:
+      - kanvas-data:/var/lib/kanvas
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  kanvas-postgres:
+  kanvas-data:

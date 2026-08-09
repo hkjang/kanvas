@@ -1,0 +1,10 @@
+.env
+.DS_Store
+bin/
+/dist/
+web/dist/
+webembed/dist/*
+!webembed/dist/.keep
+web/node_modules/
+coverage.out
+*.log

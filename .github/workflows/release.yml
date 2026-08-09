@@ -1,0 +1,47 @@
+name: Offline image release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate tag and version
+        shell: bash
+        run: |
+          test "${GITHUB_REF_NAME}" = "v$(tr -d '\n' < VERSION)"
+      - name: Build offline Kanvas image
+        shell: bash
+        run: |
+          docker build --platform linux/amd64 \
+            --build-arg VERSION="${GITHUB_REF_NAME}" \
+            --build-arg COMMIT="${GITHUB_SHA}" \
+            --build-arg BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t "kanvas-${GITHUB_REF_NAME}:latest" .
+      - name: Verify image
+        shell: bash
+        run: |
+          test "$(docker image inspect "kanvas-${GITHUB_REF_NAME}:latest" --format '{{.Config.User}}')" = "kanvas"
+          test "$(docker image inspect "kanvas-${GITHUB_REF_NAME}:latest" --format '{{.Config.Entrypoint}}')" = "[/usr/local/bin/kanvas]"
+      - name: Create offline artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          docker save "kanvas-${GITHUB_REF_NAME}:latest" | gzip -9 > "dist/kanvas-${GITHUB_REF_NAME}.tar.gz"
+          sha256sum "dist/kanvas-${GITHUB_REF_NAME}.tar.gz" > "dist/kanvas-${GITHUB_REF_NAME}.tar.gz.sha256.txt"
+          sha256sum "dist/kanvas-${GITHUB_REF_NAME}.tar.gz"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "dist/kanvas-${GITHUB_REF_NAME}.tar.gz" \
+            --title "Kanvas ${GITHUB_REF_NAME}" \
+            --notes "Offline installation image. Download kanvas-${GITHUB_REF_NAME}.tar.gz, transfer it to the isolated network, and load it with docker load. The image name is kanvas-${GITHUB_REF_NAME}:latest."

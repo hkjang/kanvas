@@ -1,0 +1,13 @@
+import React, { useEffect, useState } from 'react'
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { api, formatDate } from '../api'
+import { ChevronRight, FilePlus2, Files, Search } from 'lucide-react'
+
+export function Space() {
+  const { spaceId } = useParams(); const { spaces } = useOutletContext(); const space = spaces.find(v => v.id === spaceId)
+  const [pages, setPages] = useState([]); const [query, setQuery] = useState(''); const [showCreate, setShowCreate] = useState(false); const [title, setTitle] = useState(''); const navigate = useNavigate()
+  useEffect(() => { api(`/api/v1/spaces/${spaceId}/pages`).then(v => setPages(v || [])) }, [spaceId])
+  const create = async e => { e.preventDefault(); const page = await api(`/api/v1/spaces/${spaceId}/pages`, { method: 'POST', body: JSON.stringify({ title, renderedText: '', editorDocument: { type: 'doc', content: [] } }) }); navigate(`/pages/${page.id}/edit`) }
+  const shown = pages.filter(p => p.title.toLowerCase().includes(query.toLowerCase()))
+  return <div className="page-frame"><div className="breadcrumbs"><Link to="/">홈</Link><ChevronRight />{space?.name || '스페이스'}</div><header className="space-header"><span>{space?.key?.slice(0,2)}</span><div><p className="eyebrow">SPACE · {space?.key}</p><h1>{space?.name || '스페이스'}</h1><p>{space?.description}</p></div><button className="button primary" onClick={() => setShowCreate(true)}><FilePlus2 /> 새 페이지</button></header><div className="space-layout"><aside className="page-tree"><div><strong>페이지 트리</strong><button><FilePlus2 /></button></div>{pages.map(p => <Link key={p.id} to={`/pages/${p.id}`}><Files />{p.title}</Link>)}</aside><section className="section-card grow"><div className="section-heading"><div><h2>모든 페이지</h2><p>{pages.length}개의 문서</p></div><label className="inline-search"><Search /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="이 스페이스 검색" /></label></div><div className="table-list"><div className="table-head"><span>제목</span><span>버전</span><span>수정자</span><span>수정일</span></div>{shown.map(p => <Link key={p.id} to={`/pages/${p.id}`}><span><Files />{p.title}</span><span>v{p.currentVersion}</span><span>{p.updatedBy}</span><span>{formatDate(p.updatedAt)}</span></Link>)}</div></section></div>{showCreate && <div className="modal-backdrop"><form className="modal compact" onSubmit={create}><h2>새 페이지</h2><label>페이지 제목<input value={title} onChange={e => setTitle(e.target.value)} autoFocus required /></label><div className="modal-actions"><button type="button" className="button secondary" onClick={() => setShowCreate(false)}>취소</button><button className="button primary">초안 시작</button></div></form></div>}</div>
+}
