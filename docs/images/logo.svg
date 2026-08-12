@@ -1,39 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <defs>
-    <linearGradient id="kanvas-edge-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="kanvas-intense-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#f59e0b" />
       <stop offset="50%" stop-color="#ec4899" />
       <stop offset="100%" stop-color="#8b5cf6" />
     </linearGradient>
-    <filter id="edge-glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3.5" result="blur" />
+    <filter id="kv-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
       <feMerge>
         <feMergeNode in="blur" />
         <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
   </defs>
-  
-  <!-- Transparent Background, Sharp Edge Monogram K + Wiki Knowledge Node -->
-  <g filter="url(#edge-glow)">
-    <!-- Vertical Pillar -->
-    <path d="M 24 24 L 24 96" 
+
+  <!-- Completely Transparent Background (No Rectangle Frame) -->
+  <g filter="url(#kv-glow)">
+    <!-- Sharp Hexagonal Outer Knowledge Ring -->
+    <polygon points="60,10 106,35 106,85 60,110 14,85 14,35" 
+             fill="none" 
+             stroke="url(#kanvas-intense-grad)" 
+             stroke-width="4" 
+             stroke-dasharray="14 6" 
+             stroke-linecap="round" />
+    
+    <!-- Bold Sharp Edge K Monogram -->
+    <path d="M 32 26 L 32 94" 
           fill="none" 
-          stroke="url(#kanvas-edge-grad)" 
+          stroke="url(#kanvas-intense-grad)" 
           stroke-width="12" 
           stroke-linecap="round" />
           
-    <!-- Sharp K Diagonal Arms -->
-    <path d="M 96 24 L 28 60 L 96 96" 
+    <path d="M 88 28 L 36 60 L 88 92" 
           fill="none" 
-          stroke="url(#kanvas-edge-grad)" 
+          stroke="url(#kanvas-intense-grad)" 
           stroke-width="12" 
           stroke-linecap="round" 
           stroke-linejoin="round" />
-    
-    <!-- Accent Knowledge Node Dots -->
-    <circle cx="96" cy="24" r="7" fill="#f59e0b" />
-    <circle cx="96" cy="96" r="7" fill="#8b5cf6" />
-    <circle cx="28" cy="60" r="5" fill="#ec4899" />
+
+    <!-- Center Knowledge Node -->
+    <circle cx="60" cy="60" r="7" fill="#ffffff" filter="url(#kv-glow)" />
+    <circle cx="88" cy="28" r="5" fill="#f59e0b" />
+    <circle cx="88" cy="92" r="5" fill="#8b5cf6" />
+    <circle cx="32" cy="26" r="5" fill="#ec4899" />
   </g>
 </svg>
